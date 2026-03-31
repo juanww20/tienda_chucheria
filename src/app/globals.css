@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+@theme {
+  /* --- PALETA DE COLORES (Configuración de Marca) --- */
+  /* Color Principal: Uso para fondos de secciones y branding */
+  --color-primary: #8e44ad; /* Morado Real */
+
+  /* Color Secundario: Uso para elementos decorativos y tarjetas */
+  --color-secondary: #f06292; /* Rosa Suave */
+
+  /* Color Terciario: Uso para información técnica o stock */
+  --color-tertiary: #4dd0e1; /* Cian Brillante */
+
+  /* Color Cuaternario: ¡EL MÁS IMPORTANTE! Uso para Precios y Ofertas Combo */
+  --color-cuaternary: #fff176; /* Amarillo Neón */
+
+  /* Color Quinario: Uso para botones de acción (Call to Action) y alertas */
+  --color-quinary: #d81b60; /* Frambuesa Intenso */
+
+  /* Colores Neutros para legibilidad */
+  --color-background: #ffffff;
+  --color-foreground: #1a1a1a;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-background);
+    color: white;
+    font-family: "Inter", sans-serif;
+  }
+}
+
+@layer components {
+  .titulo-combo {
+    @apply text-7xl font-black uppercase tracking-tighter text-cuaternary;
+  }
+
+  .precio-tv {
+    @apply text-8xl font-mono font-bold text-tertiary;
+  }
+}
