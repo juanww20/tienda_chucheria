@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay, EffectFade } from 'swiper/modules';
-import type { Swiper as SwiperType } from 'swiper/types'; // 导入 Swiper 类型
+import type { Swiper as SwiperType } from 'swiper/types';
 import Image from 'next/image';
 
 import 'swiper/css';
