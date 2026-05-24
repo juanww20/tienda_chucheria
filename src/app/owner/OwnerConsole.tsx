@@ -52,11 +52,11 @@ export default function OwnerConsole({ companies }: { companies: CompanyRow[] })
     () => {
       gsap.from('.owner-head', { y: -20, opacity: 0, duration: 0.6, ease: 'power3.out' })
       gsap.from('.owner-form', { y: 24, opacity: 0, duration: 0.6, delay: 0.1, ease: 'power3.out' })
-      gsap.from('.company-card', {
-        y: 24,
+      gsap.from('.company-row', {
+        y: 16,
         opacity: 0,
-        duration: 0.5,
-        stagger: 0.08,
+        duration: 0.4,
+        stagger: 0.06,
         delay: 0.2,
         ease: 'power2.out',
       })
@@ -173,63 +173,79 @@ export default function OwnerConsole({ companies }: { companies: CompanyRow[] })
         </div>
       </form>
 
-      {/* Company grid */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {companies.map((c) => (
-          <div
-            key={c.id}
-            className="company-card flex flex-col rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:shadow-md"
-          >
-            <div className="flex items-center gap-3">
-              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-gray-100">
-                {c.logo_url ? (
-                  <Image src={c.logo_url} alt={c.name} fill sizes="48px" className="object-cover" />
-                ) : (
-                  <span className="flex h-full w-full items-center justify-center text-xl">🏪</span>
-                )}
-              </div>
-              <div className="min-w-0">
-                <p className="truncate font-bold text-gray-800">{c.name}</p>
-                <p className="truncate text-xs text-gray-400">{c.adminEmail ?? '—'}</p>
-              </div>
-            </div>
+      {/* Company table */}
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="border-b border-gray-100 px-6 py-4">
+          <h2 className="text-lg font-bold text-gray-800">Empresas creadas</h2>
+        </div>
 
-            <div className="mt-4 flex items-center gap-2 text-xs">
-              <a
-                href={`/display/${c.slug}`}
-                target="_blank"
-                className="rounded-lg bg-[#4dd0e1]/15 px-3 py-1.5 font-medium text-[#0891a3] transition hover:bg-[#4dd0e1]/25"
-              >
-                📺 Ver TV
-              </a>
-              <button
-                type="button"
-                onClick={() => navigator.clipboard?.writeText(`${baseUrl}/display/${c.slug}`)}
-                className="rounded-lg bg-gray-100 px-3 py-1.5 font-medium text-gray-600 transition hover:bg-gray-200"
-              >
-                Copiar URL
-              </button>
-            </div>
-
-            <form
-              action={deleteCompany}
-              onSubmit={(e) => {
-                if (!confirm(`¿Eliminar "${c.name}" y todos sus datos? Esta acción no se puede deshacer.`))
-                  e.preventDefault()
-              }}
-              className="mt-3 border-t border-gray-100 pt-3"
-            >
-              <input type="hidden" name="companyId" value={c.id} />
-              <button className="text-xs font-medium text-red-500 transition hover:text-red-700">
-                Eliminar empresa
-              </button>
-            </form>
-          </div>
-        ))}
-
-        {companies.length === 0 && (
-          <div className="col-span-full rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 py-12 text-center text-gray-400">
+        {companies.length === 0 ? (
+          <div className="py-12 text-center text-gray-400">
             Aún no hay empresas. Crea la primera arriba ✨
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b border-gray-200 bg-gray-50 text-left text-gray-600">
+                <tr>
+                  <th className="p-4 font-semibold">Empresa</th>
+                  <th className="p-4 font-semibold">Admin</th>
+                  <th className="p-4 font-semibold">URL de TV</th>
+                  <th className="p-4 text-right font-semibold">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {companies.map((c) => (
+                  <tr key={c.id} className="company-row border-b border-gray-100 hover:bg-gray-50">
+                    <td className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-gray-100">
+                          {c.logo_url ? (
+                            <Image src={c.logo_url} alt={c.name} fill sizes="40px" className="object-cover" />
+                          ) : (
+                            <span className="flex h-full w-full items-center justify-center text-lg">🏪</span>
+                          )}
+                        </div>
+                        <span className="font-bold text-gray-800">{c.name}</span>
+                      </div>
+                    </td>
+                    <td className="p-4 text-gray-600">{c.adminEmail ?? '—'}</td>
+                    <td className="p-4">
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={`/display/${c.slug}`}
+                          target="_blank"
+                          className="rounded-lg bg-[#4dd0e1]/15 px-3 py-1.5 text-xs font-medium text-[#0891a3] transition hover:bg-[#4dd0e1]/25"
+                        >
+                          📺 Ver TV
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => navigator.clipboard?.writeText(`${baseUrl}/display/${c.slug}`)}
+                          className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:bg-gray-200"
+                        >
+                          Copiar URL
+                        </button>
+                      </div>
+                    </td>
+                    <td className="p-4 text-right">
+                      <form
+                        action={deleteCompany}
+                        onSubmit={(e) => {
+                          if (!confirm(`¿Eliminar "${c.name}" y todos sus datos? Esta acción no se puede deshacer.`))
+                            e.preventDefault()
+                        }}
+                      >
+                        <input type="hidden" name="companyId" value={c.id} />
+                        <button type="submit" className="text-xs font-medium text-red-500 transition hover:text-red-700">
+                          🗑 Eliminar
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
