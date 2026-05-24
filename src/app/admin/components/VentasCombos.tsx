@@ -1,202 +1,189 @@
 'use client'
 
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useRef, useState } from 'react'
+import gsap from 'gsap'
+import { useGSAP } from '@gsap/react'
+import { recordSale, toggleComboTv, sellCombo, deleteCombo } from '../actions'
+import type { ComboView, ProductWithVelocity } from '@/lib/types'
+import SubmitButton from './SubmitButton'
 import ComboCreator from './ComboCreator'
 
-const VentasCombos = () => {
-  const [showComboCreator, setShowComboCreator] = useState(false)
-  const [ventasHoy, setVentasHoy] = useState(1240.5)
-  const [productos, setProductos] = useState([
-    { id: 1, nombre: 'Zapatillas Runner', precio: 89.99, stock: 12, imagen: '👟' },
-    { id: 2, nombre: 'Audio Pro X', precio: 49.99, stock: 8, imagen: '🎧' },
-    { id: 3, nombre: 'Smartwatch S3', precio: 129.99, stock: 5, imagen: '⌚' },
-    { id: 4, nombre: 'Cargador Rápido', precio: 19.99, stock: 15, imagen: '🔌' },
-  ])
+gsap.registerPlugin(useGSAP)
 
-  const [combos, setCombos] = useState([
-    {
-      id: 1,
-      nombre: 'Pack Audio Total',
-      productos: ['Audio Pro X', 'Cargador Rápido'],
-      precioOferta: 59.99,
-      precioOriginal: 69.98,
-      enTV: true
+interface Props {
+  products: ProductWithVelocity[]
+  combos: ComboView[]
+}
+
+export default function VentasCombos({ products, combos }: Props) {
+  const [showCreator, setShowCreator] = useState(false)
+  const root = useRef<HTMLDivElement>(null)
+
+  useGSAP(
+    () => {
+      gsap.from('.vc-product', { y: 20, opacity: 0, duration: 0.4, stagger: 0.05, ease: 'power2.out' })
+      gsap.from('.vc-combo', { x: -20, opacity: 0, duration: 0.4, stagger: 0.08, delay: 0.15, ease: 'power2.out' })
     },
-    {
-      id: 2,
-      nombre: 'Smart Bundle',
-      productos: ['Smartwatch S3', 'Zapatillas Runner'],
-      precioOferta: 199.99,
-      precioOriginal: 219.98,
-      enTV: true
-    }
-  ])
-
-  const handleVentaRapida = (producto) => {
-    setVentasHoy(prev => prev + producto.precio)
-    setProductos(prev => prev.map(p =>
-      p.id === producto.id ? { ...p, stock: p.stock - 1 } : p
-    ))
-  }
-
-  const toggleEnviarTV = (comboId) => {
-    setCombos(prev => prev.map(combo =>
-      combo.id === comboId ? { ...combo, enTV: !combo.enTV } : combo
-    ))
-  }
-
-  const crearCombo = (nuevoCombo) => {
-    setCombos(prev => [...prev, { ...nuevoCombo, id: Date.now(), enTV: false }])
-  }
+    { scope: root }
+  )
 
   return (
-    <>
-      <div className="max-w-7xl mx-auto">
-        {/* Header with Ventas de Hoy */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-r from-[#8e44ad] to-[#f06292] rounded-2xl p-6 mb-8 shadow-lg"
-        >
-          <p className="text-white/80 text-sm font-medium">💰 Ventas de Hoy</p>
-          <p className="text-5xl font-black" style={{ color: '#fff176' }}>
-            ${ventasHoy.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-          </p>
-          <p className="text-white/60 text-xs mt-2">Actualizado en tiempo real</p>
-        </motion.div>
+    <div ref={root} className="mx-auto max-w-7xl">
+      {/* Quick sell */}
+      <section className="mb-12">
+        <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-800">
+          <span className="h-6 w-1 rounded-full bg-[#f06292]" />
+          Venta Rápida
+        </h2>
 
-        {/* Sección 1: Productos Individuales (Quick Sell) */}
-        <div className="mb-12">
-          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <span className="w-1 h-6 bg-[#f06292] rounded-full"></span>
-            Venta Rápida
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {productos.map((producto, idx) => (
-              <motion.div
-                key={producto.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.05 }}
-                className="bg-[#2d2d2d] rounded-xl p-4 border border-gray-700 shadow-md hover:shadow-xl transition-shadow"
+        {products.length === 0 ? (
+          <p className="rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 py-10 text-center text-gray-400">
+            Sin productos. Agrégalos en Inventario 📦
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {products.map((p) => (
+              <div
+                key={p.id}
+                className="vc-product rounded-xl border border-gray-700 bg-[#2d2d2d] p-4 shadow-md transition-shadow hover:shadow-xl"
               >
                 <div className="flex items-start justify-between">
                   <div>
-                    <span className="text-4xl">{producto.imagen}</span>
-                    <h3 className="text-white font-semibold mt-2">{producto.nombre}</h3>
-                    <p className="text-gray-400 text-sm">Stock: {producto.stock}</p>
+                    <span className="text-4xl">{p.emoji ?? '🍬'}</span>
+                    <h3 className="mt-2 font-semibold text-white">{p.name}</h3>
+                    <p className="text-sm text-gray-400">Stock: {p.stock}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold text-[#4dd0e1]">${producto.precio}</p>
-                  </div>
+                  <p className="text-2xl font-bold text-[#4dd0e1]">${p.price}</p>
                 </div>
-                <button
-                  onClick={() => handleVentaRapida(producto)}
-                  className="mt-4 w-full bg-[#f06292] hover:bg-[#d81b60] text-white font-semibold py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
-                >
-                  <span>+</span> Vender
-                </button>
-              </motion.div>
+                <form action={recordSale} className="mt-4">
+                  <input type="hidden" name="productId" value={p.id} />
+                  <SubmitButton
+                    pendingText="Vendiendo…"
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#f06292] py-2 font-semibold text-white transition-colors hover:bg-[#d81b60] disabled:opacity-50"
+                  >
+                    + Vender
+                  </SubmitButton>
+                </form>
+              </div>
             ))}
           </div>
-          <p className="text-xs text-gray-400 mt-3 text-center">
-            ⚡ Estos productos NO se muestran en la TV
-          </p>
+        )}
+        <p className="mt-3 text-center text-xs text-gray-400">
+          ⚡ La venta descuenta stock automáticamente y alimenta las Sugerencias IA
+        </p>
+      </section>
+
+      {/* Combos */}
+      <section>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-xl font-bold text-gray-800">
+            <span className="h-6 w-1 rounded-full bg-[#fff176]" />
+            Combos Activos
+          </h2>
+          <button
+            type="button"
+            onClick={() => setShowCreator(true)}
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#fff176] to-[#ffd966] px-5 py-2 font-bold text-gray-800 shadow-md transition-transform hover:scale-105 active:scale-95"
+          >
+            ✨ Crear Combo
+          </button>
         </div>
 
-        {/* Sección 2: Gestión de Combos */}
-        <div>
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              <span className="w-1 h-6 bg-[#fff176] rounded-full"></span>
-              Combos Activos
-            </h2>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setShowComboCreator(true)}
-              className="bg-gradient-to-r from-[#fff176] to-[#ffd966] text-gray-800 font-bold px-5 py-2 rounded-xl shadow-md flex items-center gap-2"
+        {combos.length === 0 ? (
+          <div className="rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 py-12 text-center">
+            <p className="text-gray-400">No hay combos activos</p>
+            <button
+              type="button"
+              onClick={() => setShowCreator(true)}
+              className="mt-3 font-medium text-[#f06292]"
             >
-              ✨ Crear Nuevo Combo Manual
-            </motion.button>
+              Crear el primer combo ✨
+            </button>
           </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {combos.map((combo, idx) => (
-              <motion.div
+        ) : (
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {combos.map((combo) => (
+              <div
                 key={combo.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: idx * 0.1 }}
-                className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow"
+                className="vc-combo rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
               >
-                <div className="flex justify-between items-start mb-3">
+                <div className="flex items-start justify-between">
                   <div>
-                    <h3 className="text-lg font-bold text-gray-800">{combo.nombre}</h3>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {combo.productos.map((prod, i) => (
-                        <span key={i} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
-                          {prod}
+                    <h3 className="text-lg font-bold text-gray-800">{combo.name}</h3>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {combo.productNames.map((n, i) => (
+                        <span key={i} className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600">
+                          {n}
                         </span>
                       ))}
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-bold text-[#4dd0e1]">${combo.precioOferta}</p>
-                    <p className="text-xs text-gray-400 line-through">${combo.precioOriginal}</p>
+                    <p className="text-2xl font-bold text-[#4dd0e1]">${combo.price_offer}</p>
+                    {combo.original_price > combo.price_offer && (
+                      <p className="text-xs text-gray-400 line-through">${combo.original_price}</p>
+                    )}
                   </div>
                 </div>
 
-                <div className="flex justify-between items-center mt-4 pt-3 border-t border-gray-100">
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-3">
                   <div className="flex items-center gap-3">
-                    <span className="text-sm text-gray-500">📺 Enviar a TV</span>
-                    <button
-                      onClick={() => toggleEnviarTV(combo.id)}
-                      className={`relative w-12 h-6 rounded-full transition-colors ${combo.enTV ? 'bg-[#4dd0e1]' : 'bg-gray-300'}`}
-                    >
-                      <motion.div
-                        animate={{ x: combo.enTV ? 24 : 2 }}
-                        className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-md"
-                      />
-                    </button>
+                    <span className="text-sm text-gray-500">📺 En TV</span>
+                    <form action={toggleComboTv}>
+                      <input type="hidden" name="id" value={combo.id} />
+                      <input type="hidden" name="next" value={(!combo.on_tv).toString()} />
+                      <SubmitButton
+                        pendingText="…"
+                        className={`relative block h-6 w-12 rounded-full transition-colors ${
+                          combo.on_tv ? 'bg-[#4dd0e1]' : 'bg-gray-300'
+                        }`}
+                      >
+                        <span
+                          className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-md transition-all ${
+                            combo.on_tv ? 'left-7' : 'left-1'
+                          }`}
+                        />
+                      </SubmitButton>
+                    </form>
+                    {combo.on_tv && (
+                      <span className="rounded-full bg-[#fff176] px-2 py-1 text-xs font-medium text-gray-800">
+                        🔴 EN TV
+                      </span>
+                    )}
                   </div>
-                  {combo.enTV && (
-                    <span className="text-xs bg-[#fff176] text-gray-800 px-2 py-1 rounded-full font-medium">
-                      🔴 EN TV
-                    </span>
-                  )}
+
+                  <div className="flex items-center gap-2">
+                    <form action={sellCombo}>
+                      <input type="hidden" name="comboId" value={combo.id} />
+                      <SubmitButton
+                        pendingText="…"
+                        className="rounded-lg bg-[#f06292] px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-[#d81b60] disabled:opacity-50"
+                      >
+                        Vender combo
+                      </SubmitButton>
+                    </form>
+                    <form
+                      action={deleteCombo}
+                      onSubmit={(e) => {
+                        if (!confirm(`¿Eliminar el combo "${combo.name}"?`)) e.preventDefault()
+                      }}
+                    >
+                      <input type="hidden" name="id" value={combo.id} />
+                      <button type="submit" className="px-2 text-sm text-red-400 transition hover:text-red-600">
+                        🗑
+                      </button>
+                    </form>
+                  </div>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
-
-          {combos.length === 0 && (
-            <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-              <p className="text-gray-400">No hay combos activos</p>
-              <button
-                onClick={() => setShowComboCreator(true)}
-                className="mt-3 text-[#f06292] font-medium"
-              >
-                Crear el primer combo ✨
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Modal Creator */}
-      <AnimatePresence>
-        {showComboCreator && (
-          <ComboCreator
-            onClose={() => setShowComboCreator(false)}
-            onCreate={crearCombo}
-            productos={productos}
-          />
         )}
-      </AnimatePresence>
-    </>
+      </section>
+
+      {showCreator && (
+        <ComboCreator products={products} onClose={() => setShowCreator(false)} />
+      )}
+    </div>
   )
 }
-
-export default VentasCombos

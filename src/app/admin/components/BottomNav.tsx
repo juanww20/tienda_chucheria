@@ -1,45 +1,39 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import type { Tab } from '../AdminApp'
+import { TABS } from './Sidebar'
 
-const BottomNav = ({ activeTab, setActiveTab }) => {
-  const menuItems = [
-    { id: 'ventas', label: 'Ventas', icon: '💰' },
-    { id: 'inventario', label: 'Inventario', icon: '📦' },
-    { id: 'reportes', label: 'Reportes', icon: '📊' },
-    { id: 'ajustes', label: 'Ajustes', icon: '⚙️' },
-  ]
-
-  return (
-    <motion.div
-      initial={{ y: 100 }}
-      animate={{ y: 0 }}
-      className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-gray-200 z-50 md:hidden"
-    >
-      <div className="flex justify-around items-center py-2">
-        {menuItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setActiveTab(item.id)}
-            className="flex flex-col items-center gap-1 py-2 px-4 relative"
-          >
-            <span className={`text-2xl transition-all ${activeTab === item.id ? 'scale-110' : ''}`}>
-              {item.icon}
-            </span>
-            <span className={`text-xs font-medium ${activeTab === item.id ? 'text-[#f06292]' : 'text-gray-400'}`}>
-              {item.label}
-            </span>
-            {activeTab === item.id && (
-              <motion.div
-                layoutId="bottomIndicator"
-                className="absolute -top-1 w-8 h-1 bg-[#f06292] rounded-full"
-              />
-            )}
-          </button>
-        ))}
-      </div>
-    </motion.div>
-  )
+interface Props {
+  activeTab: Tab
+  setActiveTab: (t: Tab) => void
+  suggestionCount: number
 }
 
-export default BottomNav
+export default function BottomNav({ activeTab, setActiveTab, suggestionCount }: Props) {
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t border-gray-200 bg-white/95 backdrop-blur md:hidden">
+      {TABS.map((item) => {
+        const active = activeTab === item.id
+        return (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setActiveTab(item.id)}
+            className={`relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors ${
+              active ? 'text-[#f06292]' : 'text-gray-400'
+            }`}
+          >
+            <span className="text-lg">{item.icon}</span>
+            <span className="truncate">{item.label.split(' ')[0]}</span>
+            {item.id === 'sugerencias' && suggestionCount > 0 && (
+              <span className="absolute right-3 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#fff176] px-1 text-[9px] font-bold text-gray-800">
+                {suggestionCount}
+              </span>
+            )}
+            {active && <span className="absolute bottom-0 h-0.5 w-8 rounded-full bg-[#f06292]" />}
+          </button>
+        )
+      })}
+    </nav>
+  )
+}

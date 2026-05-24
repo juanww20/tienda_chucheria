@@ -1,145 +1,161 @@
 'use client'
 
-import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { useRef, useState } from 'react'
+import gsap from 'gsap'
+import { useGSAP } from '@gsap/react'
+import { createCombo } from '../actions'
+import type { ProductWithVelocity } from '@/lib/types'
+import SubmitButton from './SubmitButton'
 
-const ComboCreator = ({ onClose, onCreate, productos }) => {
-  const [nombre, setNombre] = useState('')
-  const [productosSeleccionados, setProductosSeleccionados] = useState([])
-  const [precioOferta, setPrecioOferta] = useState('')
+gsap.registerPlugin(useGSAP)
 
-  const productosDisponibles = productos.filter(p => !productosSeleccionados.includes(p.nombre))
+interface Props {
+  products: ProductWithVelocity[]
+  onClose: () => void
+  presetIds?: string[]
+  presetName?: string
+  presetPrice?: number
+}
 
-  const agregarProducto = (productoNombre) => {
-    setProductosSeleccionados([...productosSeleccionados, productoNombre])
-  }
+export default function ComboCreator({
+  products,
+  onClose,
+  presetIds = [],
+  presetName = '',
+  presetPrice,
+}: Props) {
+  const [selected, setSelected] = useState<string[]>(presetIds)
+  const [name, setName] = useState(presetName)
+  const [price, setPrice] = useState(presetPrice ? String(presetPrice) : '')
+  const root = useRef<HTMLDivElement>(null)
 
-  const quitarProducto = (productoNombre) => {
-    setProductosSeleccionados(productosSeleccionados.filter(p => p !== productoNombre))
-  }
+  useGSAP(
+    () => {
+      gsap.from('.cc-panel', { y: 24, scale: 0.95, opacity: 0, duration: 0.35, ease: 'back.out(1.5)' })
+    },
+    { scope: root }
+  )
 
-  const precioOriginal = productosSeleccionados.reduce((total, nombreProd) => {
-    const prod = productos.find(p => p.nombre === nombreProd)
-    return total + (prod?.precio || 0)
-  }, 0)
-
-  const handleSubmit = () => {
-    if (!nombre || productosSeleccionados.length < 2 || !precioOferta) {
-      alert('Completa todos los campos (mínimo 2 productos)')
-      return
-    }
-    onCreate({
-      nombre,
-      productos: productosSeleccionados,
-      precioOferta: parseFloat(precioOferta),
-      precioOriginal: precioOriginal
-    })
-    onClose()
-  }
+  const byId = (id: string) => products.find((p) => p.id === id)
+  const original = selected.reduce((t, id) => t + (byId(id)?.price ?? 0), 0)
+  const available = products.filter((p) => !selected.includes(p.id))
+  const valid = name.trim() && selected.length >= 2 && Number(price) > 0
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    <div
+      ref={root}
       onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
     >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0, y: 20 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+      <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+        className="cc-panel max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white shadow-2xl"
       >
-        <div className="p-6 border-b border-gray-100">
+        <div className="border-b border-gray-100 p-6">
           <h2 className="text-2xl font-bold text-gray-800">✨ Nuevo Combo</h2>
-          <p className="text-sm text-gray-500">Crea un combo para mostrar en la TV</p>
+          <p className="text-sm text-gray-500">Combina productos para mostrar en la TV</p>
         </div>
 
-        <div className="p-6 space-y-5">
+        <form
+          action={async (fd) => {
+            await createCombo(fd)
+            onClose()
+          }}
+          className="space-y-5 p-6"
+        >
+          {selected.map((id) => (
+            <input key={id} type="hidden" name="productIds" value={id} />
+          ))}
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Nombre del Combo</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">Nombre del combo</label>
             <input
-              type="text"
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-              placeholder="Ej: Pack Super Oferta"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#f06292] focus:border-transparent"
+              name="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ej: Pack Súper Oferta"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 outline-none focus:ring-2 focus:ring-[#f06292]"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Productos (mínimo 2)</label>
-            <div className="bg-gray-50 rounded-lg p-3 min-h-[100px]">
-              {productosSeleccionados.length === 0 ? (
-                <p className="text-gray-400 text-sm text-center">Selecciona productos para el combo</p>
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Productos (mínimo 2)
+            </label>
+            <div className="min-h-[80px] rounded-lg bg-gray-50 p-3">
+              {selected.length === 0 ? (
+                <p className="text-center text-sm text-gray-400">Selecciona productos</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
-                  {productosSeleccionados.map(prod => (
-                    <span
-                      key={prod}
-                      onClick={() => quitarProducto(prod)}
-                      className="bg-[#f06292] text-white px-3 py-1 rounded-full text-sm cursor-pointer hover:bg-[#d81b60] transition-colors"
+                  {selected.map((id) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setSelected((s) => s.filter((x) => x !== id))}
+                      className="rounded-full bg-[#f06292] px-3 py-1 text-sm text-white transition-colors hover:bg-[#d81b60]"
                     >
-                      {prod} ✕
-                    </span>
+                      {byId(id)?.emoji} {byId(id)?.name} ✕
+                    </button>
                   ))}
                 </div>
               )}
             </div>
-            {productosDisponibles.length > 0 && (
-              <div className="mt-3">
-                <p className="text-xs text-gray-500 mb-2">Agregar producto:</p>
-                <div className="flex flex-wrap gap-2">
-                  {productosDisponibles.map(prod => (
-                    <button
-                      key={prod.nombre}
-                      onClick={() => agregarProducto(prod.nombre)}
-                      className="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-full transition-colors"
-                    >
-                      + {prod.nombre}
-                    </button>
-                  ))}
-                </div>
+            {available.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {available.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setSelected((s) => [...s, p.id])}
+                    className="rounded-full bg-gray-100 px-3 py-1 text-sm transition-colors hover:bg-gray-200"
+                  >
+                    + {p.emoji} {p.name}
+                  </button>
+                ))}
               </div>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Precio Oferta ($)</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">Precio oferta ($)</label>
             <input
+              name="priceOffer"
               type="number"
-              value={precioOferta}
-              onChange={(e) => setPrecioOferta(e.target.value)}
+              step="0.01"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
               placeholder="Precio promocional"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#f06292]"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 outline-none focus:ring-2 focus:ring-[#f06292]"
             />
-            {precioOriginal > 0 && (
-              <p className="text-xs text-gray-400 mt-1">
-                Precio original: ${precioOriginal.toFixed(2)} | Ahorro: ${(precioOriginal - precioOferta).toFixed(2)}
+            {original > 0 && (
+              <p className="mt-1 text-xs text-gray-400">
+                Precio original: ${original.toFixed(2)}
+                {Number(price) > 0 && ` · Ahorro: $${(original - Number(price)).toFixed(2)}`}
               </p>
             )}
           </div>
-        </div>
 
-        <div className="p-6 border-t border-gray-100 flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleSubmit}
-            className="flex-1 bg-gradient-to-r from-[#fff176] to-[#ffd966] text-gray-800 font-bold px-4 py-2 rounded-lg hover:shadow-lg transition-all"
-          >
-            Crear Combo
-          </button>
-        </div>
-      </motion.div>
-    </motion.div>
+          <div className="flex gap-3 border-t border-gray-100 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-gray-700 transition hover:bg-gray-50"
+            >
+              Cancelar
+            </button>
+            <SubmitButton
+              pendingText="Creando…"
+              className={`flex-1 rounded-lg px-4 py-2 font-bold transition-all ${
+                valid
+                  ? 'bg-gradient-to-r from-[#fff176] to-[#ffd966] text-gray-800 hover:shadow-lg'
+                  : 'cursor-not-allowed bg-gray-200 text-gray-400'
+              }`}
+            >
+              Crear Combo
+            </SubmitButton>
+          </div>
+        </form>
+      </div>
+    </div>
   )
 }
-
-export default ComboCreator

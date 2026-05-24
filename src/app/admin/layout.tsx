@@ -1,28 +1,12 @@
-import type { Metadata } from "next";
-import { Inter } from 'next/font/google'
-import "../globals.css";
+import type { Metadata } from 'next'
 
-export const sansFont = Inter({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-sans',
-});
-
-export const metadata:Metadata = {
-  title: 'Chuchu - Panel de Control',
+export const metadata: Metadata = {
+  title: 'Chuchu · Panel',
   description: 'Gestión de ventas y combos para tu negocio',
-};
+}
 
-export default function RootLayout({
+export default function AdminLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  return (
-    <html
-      lang="en" className={`${sansFont.variable}`}
-    >
-      <body className="min-h-full flex flex-col">{children}</body>
-    </html>
-  );
+}: Readonly<{ children: React.ReactNode }>) {
+  return <div className="min-h-screen bg-[#f8f9fa] text-gray-800">{children}</div>
 }

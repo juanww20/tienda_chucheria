@@ -1,105 +1,155 @@
 'use client'
 
-import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { useRef } from 'react'
+import gsap from 'gsap'
+import { useGSAP } from '@gsap/react'
+import { addProduct, updateStock, deleteProduct } from '../actions'
+import type { ProductWithVelocity } from '@/lib/types'
+import SubmitButton from './SubmitButton'
 
-const Inventario = () => {
-  const [productos, setProductos] = useState([
-    { id: 1, nombre: 'Zapatillas Runner', precio: 89.99, stock: 12, categoria: 'Líder', rotacion: 'alta' },
-    { id: 2, nombre: 'Audio Pro X', precio: 49.99, stock: 8, categoria: 'Líder', rotacion: 'alta' },
-    { id: 3, nombre: 'Smartwatch S3', precio: 129.99, stock: 5, categoria: 'Baja Rotación', rotacion: 'baja' },
-    { id: 4, nombre: 'Cargador Rápido', precio: 19.99, stock: 15, categoria: 'Líder', rotacion: 'alta' },
-    { id: 5, nombre: 'Funda Premium', precio: 14.99, stock: 3, categoria: 'Baja Rotación', rotacion: 'baja' },
-  ])
+gsap.registerPlugin(useGSAP)
 
-  const cambiarEtiqueta = (id, nuevaCategoria) => {
-    setProductos(prev => prev.map(p =>
-      p.id === id ? { ...p, categoria: nuevaCategoria, rotacion: nuevaCategoria === 'Baja Rotación' ? 'baja' : 'alta' } : p
-    ))
-  }
+function velocityTag(v: number) {
+  if (v <= 0) return { label: 'Sin ventas', cls: 'bg-gray-100 text-gray-500' }
+  if (v >= 0.1) return { label: '🚀 Rápido', cls: 'bg-green-100 text-green-700' }
+  return { label: '🐢 Lento', cls: 'bg-orange-100 text-orange-700' }
+}
 
-  const actualizarStock = (id, nuevoStock) => {
-    setProductos(prev => prev.map(p =>
-      p.id === id ? { ...p, stock: Math.max(0, nuevoStock) } : p
-    ))
-  }
+export default function Inventario({ products }: { products: ProductWithVelocity[] }) {
+  const root = useRef<HTMLDivElement>(null)
+
+  useGSAP(
+    () => {
+      gsap.from('.inv-row', { x: -16, opacity: 0, duration: 0.35, stagger: 0.04, ease: 'power2.out' })
+    },
+    { scope: root, dependencies: [products.length] }
+  )
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+    <div ref={root} className="mx-auto max-w-7xl">
+      <h1 className="mb-2 text-2xl font-bold text-gray-800">📦 Inventario</h1>
+      <p className="mb-6 text-gray-500">Agrega productos, ajusta stock y observa su rotación.</p>
+
+      {/* Add product */}
+      <form
+        action={addProduct}
+        className="mb-6 grid grid-cols-2 gap-3 rounded-xl border border-gray-200 bg-white p-4 sm:grid-cols-5"
       >
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">📦 Inventario</h1>
-        <p className="text-gray-500 mb-6">Gestiona stock y etiquetas de productos</p>
+        <input
+          name="emoji"
+          maxLength={2}
+          defaultValue="🍬"
+          placeholder="🍬"
+          className="rounded-lg border border-gray-300 px-3 py-2 text-center outline-none focus:ring-2 focus:ring-[#f06292]"
+        />
+        <input
+          name="name"
+          required
+          placeholder="Nombre del producto"
+          className="col-span-2 rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-[#f06292]"
+        />
+        <input
+          name="price"
+          type="number"
+          step="0.01"
+          required
+          placeholder="Precio"
+          className="rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-[#f06292]"
+        />
+        <input
+          name="stock"
+          type="number"
+          required
+          placeholder="Stock"
+          className="rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-[#f06292]"
+        />
+        <SubmitButton
+          pendingText="Agregando…"
+          className="col-span-2 rounded-lg bg-[#8e44ad] py-2 font-semibold text-white transition hover:bg-[#7d3c9d] disabled:opacity-50 sm:col-span-5"
+        >
+          + Agregar producto
+        </SubmitButton>
+      </form>
 
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="text-left p-4 font-semibold text-gray-600">Producto</th>
-                  <th className="text-left p-4 font-semibold text-gray-600">Precio</th>
-                  <th className="text-left p-4 font-semibold text-gray-600">Stock</th>
-                  <th className="text-left p-4 font-semibold text-gray-600">Etiqueta</th>
-                  <th className="text-left p-4 font-semibold text-gray-600">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {productos.map((producto, idx) => (
-                  <motion.tr
-                    key={producto.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                    className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                  >
-                    <td className="p-4 font-medium text-gray-800">{producto.nombre}</td>
-                    <td className="p-4 text-[#4dd0e1] font-bold">${producto.precio}</td>
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="border-b border-gray-200 bg-gray-50 text-left text-gray-600">
+              <tr>
+                <th className="p-4 font-semibold">Producto</th>
+                <th className="p-4 font-semibold">Precio</th>
+                <th className="p-4 font-semibold">Stock</th>
+                <th className="p-4 font-semibold">Rotación</th>
+                <th className="p-4 font-semibold" />
+              </tr>
+            </thead>
+            <tbody>
+              {products.map((p) => {
+                const tag = velocityTag(p.velocity)
+                return (
+                  <tr key={p.id} className="inv-row border-b border-gray-100 hover:bg-gray-50">
+                    <td className="p-4 font-medium text-gray-800">
+                      <span className="mr-2">{p.emoji}</span>
+                      {p.name}
+                    </td>
+                    <td className="p-4 font-bold text-[#4dd0e1]">${p.price}</td>
                     <td className="p-4">
-                      <input
-                        type="number"
-                        value={producto.stock}
-                        onChange={(e) => actualizarStock(producto.id, parseInt(e.target.value))}
-                        className="w-20 px-2 py-1 border border-gray-300 rounded-lg text-center"
-                      />
+                      <form action={updateStock} className="flex items-center gap-2">
+                        <input type="hidden" name="id" value={p.id} />
+                        <input
+                          name="stock"
+                          type="number"
+                          aria-label={`Stock de ${p.name}`}
+                          defaultValue={p.stock}
+                          className="w-20 rounded-lg border border-gray-300 px-2 py-1 text-center"
+                        />
+                        <SubmitButton
+                          pendingText="…"
+                          className="rounded-lg bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-200"
+                        >
+                          Guardar
+                        </SubmitButton>
+                      </form>
                     </td>
                     <td className="p-4">
-                      <select
-                        value={producto.categoria}
-                        onChange={(e) => cambiarEtiqueta(producto.id, e.target.value)}
-                        className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          producto.categoria === 'Líder' 
-                            ? 'bg-green-100 text-green-700' 
-                            : 'bg-orange-100 text-orange-700'
-                        }`}
+                      <span className={`rounded-full px-3 py-1 text-xs font-medium ${tag.cls}`}>
+                        {tag.label}
+                      </span>
+                    </td>
+                    <td className="p-4 text-right">
+                      <form
+                        action={deleteProduct}
+                        onSubmit={(e) => {
+                          if (!confirm(`¿Eliminar "${p.name}"?`)) e.preventDefault()
+                        }}
                       >
-                        <option value="Líder">🚀 Líder de Ventas</option>
-                        <option value="Baja Rotación">⚠️ Baja Rotación</option>
-                      </select>
+                        <input type="hidden" name="id" value={p.id} />
+                        <button type="submit" className="text-red-400 transition hover:text-red-600">
+                          🗑
+                        </button>
+                      </form>
                     </td>
-                    <td className="p-4">
-                      {producto.rotacion === 'baja' && (
-                        <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded-full">
-                          Recomendar en combo
-                        </span>
-                      )}
-                    </td>
-                  </motion.tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                  </tr>
+                )
+              })}
+              {products.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="p-10 text-center text-gray-400">
+                    Sin productos todavía.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
+      </div>
 
-        <div className="mt-6 p-4 bg-gradient-to-r from-[#fff176]/20 to-[#f06292]/20 rounded-xl">
-          <p className="text-sm text-gray-700">
-            💡 <strong>Tip Chuchu:</strong> Los productos con etiqueta "Baja Rotación" se recomiendan para combos con líderes de ventas.
-          </p>
-        </div>
-      </motion.div>
+      <div className="mt-6 rounded-xl bg-gradient-to-r from-[#fff176]/20 to-[#f06292]/20 p-4">
+        <p className="text-sm text-gray-700">
+          💡 <strong>Tip Chuchu:</strong> Los productos 🐢 lentos se combinan automáticamente con los
+          🚀 rápidos en la pestaña <strong>Sugerencias IA</strong> para moverlos más rápido.
+        </p>
+      </div>
     </div>
   )
 }
-
-export default Inventario

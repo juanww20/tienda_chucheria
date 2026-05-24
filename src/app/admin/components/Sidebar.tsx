@@ -1,62 +1,80 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import Image from 'next/image'
+import { logout } from '@/app/login/actions'
+import type { Company } from '@/lib/types'
+import type { Tab } from '../AdminApp'
 
-const Sidebar = ({ activeTab, setActiveTab }) => {
-    const menuItems = [
-        { id: 'ventas', label: 'Ventas & Combos', icon: '💰' },
-        { id: 'inventario', label: 'Inventario', icon: '📦' },
-        { id: 'reportes', label: 'Reportes', icon: '📊' },
-        { id: 'ajustes', label: 'Ajustes', icon: '⚙️' },
-    ]
+export const TABS: { id: Tab; label: string; icon: string }[] = [
+  { id: 'ventas', label: 'Ventas & Combos', icon: '💰' },
+  { id: 'inventario', label: 'Inventario', icon: '📦' },
+  { id: 'sugerencias', label: 'Sugerencias IA', icon: '🤖' },
+  { id: 'reportes', label: 'Reportes', icon: '📊' },
+  { id: 'ajustes', label: 'Ajustes', icon: '⚙️' },
+]
 
-    return (
-        <motion.aside
-            initial={{ x: -280 }}
-            animate={{ x: 0 }}
-            className="fixed left-0 top-0 h-screen w-[280px] bg-white border-r border-gray-200 z-50"
-        >
-            <div className="p-6 border-b border-gray-100">
-                <h1 className="text-2xl font-bold">
-                    <span className="text-[#f06292]">Chuchu</span>
-                    <span className="text-[#8e44ad]">Panel</span>
-                </h1>
-                <p className="text-xs text-gray-400 mt-1">Gestión inteligente</p>
-            </div>
-
-            <nav className="p-4">
-                {menuItems.map((item) => (
-                    <button
-                        key={item.id}
-                        onClick={() => setActiveTab(item.id)}
-                        className={`
-              w-full flex items-center gap-3 px-4 py-3 rounded-xl mb-2 transition-all
-              ${activeTab === item.id
-                                ? 'bg-[#f06292] text-white shadow-lg shadow-[#f06292]/30'
-                                : 'text-gray-600 hover:bg-gray-100'
-                            }
-            `}
-                    >
-                        <span className="text-xl">{item.icon}</span>
-                        <span className="font-medium">{item.label}</span>
-                        {activeTab === item.id && (
-                            <motion.div
-                                layoutId="activeIndicator"
-                                className="ml-auto w-1.5 h-1.5 rounded-full bg-white"
-                            />
-                        )}
-                    </button>
-                ))}
-            </nav>
-
-            <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-gray-100">
-                <div className="bg-gradient-to-r from-[#8e44ad]/10 to-[#f06292]/10 rounded-xl p-4">
-                    <p className="text-xs text-gray-500">Versión 1.0.0</p>
-                    <p className="text-xs font-medium text-[#8e44ad] mt-1">✨ Chuchu Smart Menu</p>
-                </div>
-            </div>
-        </motion.aside>
-    )
+interface Props {
+  activeTab: Tab
+  setActiveTab: (t: Tab) => void
+  company: Company
+  suggestionCount: number
 }
 
-export default Sidebar
+export default function Sidebar({ activeTab, setActiveTab, company, suggestionCount }: Props) {
+  return (
+    <aside className="fixed left-0 top-0 z-50 hidden h-screen w-[280px] flex-col border-r border-gray-200 bg-white md:flex">
+      {/* Co-branding */}
+      <div className="flex items-center gap-2 border-b border-gray-100 p-5">
+        <div className="relative h-10 w-10 shrink-0">
+          <Image src="/Logo/Chuchu_logo.png" alt="Chuchu" fill sizes="40px" className="object-contain" />
+        </div>
+        <span className="text-xl font-light text-gray-300">|</span>
+        <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+          {company.logo_url ? (
+            <Image src={company.logo_url} alt={company.name} fill sizes="36px" className="object-cover" />
+          ) : (
+            <span className="flex h-full w-full items-center justify-center text-base">🏪</span>
+          )}
+        </div>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-black uppercase leading-none tracking-tight text-[#8e44ad]">
+            {company.name}
+          </p>
+          <p className="text-[10px] font-medium text-gray-400">by Chuchu</p>
+        </div>
+      </div>
+
+      <nav className="flex-1 p-4">
+        {TABS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setActiveTab(item.id)}
+            className={`mb-2 flex w-full items-center gap-3 rounded-xl px-4 py-3 transition-all ${
+              activeTab === item.id
+                ? 'bg-[#f06292] text-white shadow-lg shadow-[#f06292]/30'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <span className="text-xl">{item.icon}</span>
+            <span className="font-medium">{item.label}</span>
+            {item.id === 'sugerencias' && suggestionCount > 0 && (
+              <span className="ml-auto rounded-full bg-[#fff176] px-2 py-0.5 text-xs font-bold text-gray-800">
+                {suggestionCount}
+              </span>
+            )}
+          </button>
+        ))}
+      </nav>
+
+      <div className="border-t border-gray-100 p-4">
+        <form action={logout}>
+          <button type="submit" className="w-full rounded-xl border border-gray-200 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100">
+            Cerrar sesión
+          </button>
+        </form>
+        <p className="mt-3 text-center text-[10px] text-gray-300">✨ Chuchu Smart Menu v2.0</p>
+      </div>
+    </aside>
+  )
+}

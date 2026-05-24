@@ -1,120 +1,97 @@
 'use client'
 
 import { useState } from 'react'
-import { motion } from 'framer-motion'
+import Image from 'next/image'
+import { updateCompany } from '../actions'
+import type { Company } from '@/lib/types'
+import SubmitButton from './SubmitButton'
 
-const Ajustes = () => {
-  const [tienda, setTienda] = useState({
-    nombre: 'Mi Tienda Chuchu',
-    direccion: 'Av. Principal 123',
-    telefono: '+54 11 1234-5678',
-    email: 'contacto@mitienda.com'
-  })
-
-  const [notificaciones, setNotificaciones] = useState(true)
-
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    alert('Configuración guardada ✅')
-  }
+export default function Ajustes({ company }: { company: Company }) {
+  const [preview, setPreview] = useState<string | null>(null)
+  const displayUrl =
+    typeof window !== 'undefined' ? `${window.location.origin}/display/${company.slug}` : ''
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">⚙️ Ajustes</h1>
-        <p className="text-gray-500 mb-6">Configuración de tu tienda y preferencias</p>
+    <div className="mx-auto max-w-4xl">
+      <h1 className="mb-2 text-2xl font-bold text-gray-800">⚙️ Ajustes</h1>
+      <p className="mb-6 text-gray-500">Personaliza tu marca y obtén la URL de tu pantalla.</p>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h3 className="font-bold text-gray-800 mb-4">🏪 Datos de la Tienda</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de la tienda</label>
-                <input
-                  type="text"
-                  value={tienda.nombre}
-                  onChange={(e) => setTienda({ ...tienda, nombre: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#f06292]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
-                <input
-                  type="text"
-                  value={tienda.direccion}
-                  onChange={(e) => setTienda({ ...tienda, direccion: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
-                  <input
-                    type="tel"
-                    value={tienda.telefono}
-                    onChange={(e) => setTienda({ ...tienda, telefono: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                  <input
-                    type="email"
-                    value={tienda.email}
-                    onChange={(e) => setTienda({ ...tienda, email: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h3 className="font-bold text-gray-800 mb-4">🔔 Preferencias</h3>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-gray-700">Notificaciones de ventas</p>
-                <p className="text-sm text-gray-500">Recibir alertas cuando se vende un combo</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setNotificaciones(!notificaciones)}
-                className={`relative w-12 h-6 rounded-full transition-colors ${notificaciones ? 'bg-[#4dd0e1]' : 'bg-gray-300'}`}
-              >
-                <motion.div
-                  animate={{ x: notificaciones ? 24 : 2 }}
-                  className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-md"
-                />
-              </button>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h3 className="font-bold text-gray-800 mb-4">📺 Configuración de TV</h3>
-            <div className="space-y-3">
-              <p className="text-sm text-gray-600">URL para mostrar en pantalla:</p>
-              <code className="block bg-gray-100 p-3 rounded-lg text-sm break-all">
-                http://localhost:3000/display
-              </code>
-              <p className="text-xs text-gray-400 mt-2">
-                💡 Abre esta URL en cualquier navegador conectado a tu TV vía HDMI o Chromecast
+      <form action={updateCompany} className="space-y-6">
+        <div className="rounded-xl border border-gray-200 bg-white p-6">
+          <h3 className="mb-4 font-bold text-gray-800">🏪 Tu empresa</h3>
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+            <label className="group relative flex h-24 w-24 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 transition hover:border-[#d81b60]">
+              {preview ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={preview} alt="preview" className="h-full w-full object-cover" />
+              ) : company.logo_url ? (
+                <Image src={company.logo_url} alt={company.name} fill sizes="96px" className="object-cover" />
+              ) : (
+                <span className="text-3xl text-gray-400 group-hover:text-[#d81b60]">📷</span>
+              )}
+              <input
+                name="logo"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  setPreview(f ? URL.createObjectURL(f) : null)
+                }}
+              />
+            </label>
+            <div className="flex-1">
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Nombre de la empresa
+              </label>
+              <input
+                name="name"
+                aria-label="Nombre de la empresa"
+                defaultValue={company.name}
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 outline-none focus:ring-2 focus:ring-[#f06292]"
+              />
+              <p className="mt-2 text-xs text-gray-400">
+                Toca el cuadro para cambiar tu logo. Se mostrará junto al de Chuchu.
               </p>
             </div>
           </div>
+        </div>
 
-          <button
-            type="submit"
-            className="w-full bg-gradient-to-r from-[#8e44ad] to-[#f06292] text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all"
-          >
-            Guardar Cambios
-          </button>
-        </form>
-      </motion.div>
+        <div className="rounded-xl border border-gray-200 bg-white p-6">
+          <h3 className="mb-4 font-bold text-gray-800">📺 Pantalla / TV</h3>
+          <p className="mb-2 text-sm text-gray-600">URL para mostrar tus combos en pantalla:</p>
+          <code className="block break-all rounded-lg bg-gray-100 p-3 text-sm text-gray-700">
+            {displayUrl}
+          </code>
+          <div className="mt-3 flex gap-2">
+            <a
+              href={`/display/${company.slug}`}
+              target="_blank"
+              className="rounded-lg bg-[#4dd0e1]/15 px-4 py-2 text-sm font-medium text-[#0891a3] transition hover:bg-[#4dd0e1]/25"
+            >
+              Abrir pantalla
+            </a>
+            <button
+              type="button"
+              onClick={() => navigator.clipboard?.writeText(displayUrl)}
+              className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-200"
+            >
+              Copiar URL
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-gray-400">
+            💡 Ábrela en cualquier navegador conectado a tu TV (HDMI / Chromecast). Solo aparecen los
+            combos con 📺 EN TV.
+          </p>
+        </div>
+
+        <SubmitButton
+          pendingText="Guardando…"
+          className="w-full rounded-xl bg-gradient-to-r from-[#8e44ad] to-[#f06292] py-3 font-bold text-white shadow-lg transition hover:shadow-xl disabled:opacity-50"
+        >
+          Guardar cambios
+        </SubmitButton>
+      </form>
     </div>
   )
 }
-
-export default Ajustes

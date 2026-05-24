@@ -1,0 +1,163 @@
+-- ============================================================
+-- Chuchu SaaS multi-tenant schema
+-- Run this in Supabase SQL Editor (one time).
+-- ============================================================
+
+-- Extensions ------------------------------------------------
+create extension if not exists "pgcrypto";
+
+-- Tables ----------------------------------------------------
+create table if not exists public.companies (
+  id          uuid primary key default gen_random_uuid(),
+  name        text not null,
+  slug        text unique not null,
+  logo_url    text,
+  created_at  timestamptz not null default now()
+);
+
+create table if not exists public.profiles (
+  id          uuid primary key references auth.users(id) on delete cascade,
+  email       text,
+  role        text not null default 'admin' check (role in ('owner','admin')),
+  company_id  uuid references public.companies(id) on delete cascade,
+  created_at  timestamptz not null default now()
+);
+
+create table if not exists public.products (
+  id          uuid primary key default gen_random_uuid(),
+  company_id  uuid not null references public.companies(id) on delete cascade,
+  name        text not null,
+  price       numeric(10,2) not null default 0,
+  stock       int not null default 0,
+  emoji       text default '🍬',
+  image_url   text,
+  created_at  timestamptz not null default now()
+);
+
+create table if not exists public.combos (
+  id              uuid primary key default gen_random_uuid(),
+  company_id      uuid not null references public.companies(id) on delete cascade,
+  name            text not null,
+  description     text,
+  price_offer     numeric(10,2) not null default 0,
+  original_price  numeric(10,2) not null default 0,
+  on_tv           boolean not null default false,
+  created_at      timestamptz not null default now()
+);
+
+create table if not exists public.combo_items (
+  combo_id    uuid not null references public.combos(id) on delete cascade,
+  product_id  uuid not null references public.products(id) on delete cascade,
+  primary key (combo_id, product_id)
+);
+
+create table if not exists public.sales (
+  id          uuid primary key default gen_random_uuid(),
+  company_id  uuid not null references public.companies(id) on delete cascade,
+  product_id  uuid references public.products(id) on delete set null,
+  combo_id    uuid references public.combos(id) on delete set null,
+  qty         int not null default 1,
+  unit_price  numeric(10,2) not null default 0,
+  sold_at     timestamptz not null default now()
+);
+
+create index if not exists idx_products_company on public.products(company_id);
+create index if not exists idx_combos_company   on public.combos(company_id);
+create index if not exists idx_sales_company    on public.sales(company_id);
+create index if not exists idx_sales_product    on public.sales(product_id);
+create index if not exists idx_sales_sold_at    on public.sales(sold_at);
+
+-- Helper functions (security definer to avoid RLS recursion) -
+create or replace function public.current_company_id()
+returns uuid
+language sql stable security definer set search_path = public as $$
+  select company_id from public.profiles where id = auth.uid()
+$$;
+
+create or replace function public.is_owner()
+returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists(select 1 from public.profiles where id = auth.uid() and role = 'owner')
+$$;
+
+-- Row Level Security ----------------------------------------
+alter table public.companies   enable row level security;
+alter table public.profiles    enable row level security;
+alter table public.products    enable row level security;
+alter table public.combos      enable row level security;
+alter table public.combo_items enable row level security;
+alter table public.sales       enable row level security;
+
+-- profiles: read own (owner reads all)
+drop policy if exists "profiles_read" on public.profiles;
+create policy "profiles_read" on public.profiles
+  for select using (id = auth.uid() or public.is_owner());
+
+-- companies: tenant reads own, owner reads all
+drop policy if exists "companies_read" on public.companies;
+create policy "companies_read" on public.companies
+  for select using (id = public.current_company_id() or public.is_owner());
+
+-- generic tenant-scoped policies (products/combos/sales)
+drop policy if exists "products_rw" on public.products;
+create policy "products_rw" on public.products
+  for all using (company_id = public.current_company_id() or public.is_owner())
+  with check (company_id = public.current_company_id() or public.is_owner());
+
+drop policy if exists "combos_rw" on public.combos;
+create policy "combos_rw" on public.combos
+  for all using (company_id = public.current_company_id() or public.is_owner())
+  with check (company_id = public.current_company_id() or public.is_owner());
+
+drop policy if exists "sales_rw" on public.sales;
+create policy "sales_rw" on public.sales
+  for all using (company_id = public.current_company_id() or public.is_owner())
+  with check (company_id = public.current_company_id() or public.is_owner());
+
+drop policy if exists "combo_items_rw" on public.combo_items;
+create policy "combo_items_rw" on public.combo_items
+  for all using (
+    exists (select 1 from public.combos c
+            where c.id = combo_id
+              and (c.company_id = public.current_company_id() or public.is_owner())))
+  with check (
+    exists (select 1 from public.combos c
+            where c.id = combo_id
+              and (c.company_id = public.current_company_id() or public.is_owner())));
+
+-- Storage bucket for logos (public read) --------------------
+insert into storage.buckets (id, name, public)
+values ('logos', 'logos', true)
+on conflict (id) do nothing;
+
+drop policy if exists "logos_public_read" on storage.objects;
+create policy "logos_public_read" on storage.objects
+  for select using (bucket_id = 'logos');
+
+-- NOTE: logo uploads are performed server-side with the SERVICE ROLE key,
+-- which bypasses RLS, so no insert policy is needed for the owner flow.
+
+-- Table privileges (PostgREST roles) ------------------------
+-- Without these the data API returns 42501 "permission denied".
+-- RLS still restricts which ROWS 'authenticated' can touch.
+grant usage on schema public to anon, authenticated, service_role;
+grant all on all tables in schema public to service_role;
+grant all on all sequences in schema public to service_role;
+grant select, insert, update, delete on all tables in schema public to authenticated;
+grant select on all tables in schema public to anon;
+
+alter default privileges in schema public
+  grant all on tables to service_role;
+alter default privileges in schema public
+  grant select, insert, update, delete on tables to authenticated;
+
+-- ============================================================
+-- Bootstrap the OWNER account (run AFTER creating the auth user)
+-- 1) In Supabase Dashboard > Authentication > Users > Add user
+--    (email + password, mark "Auto Confirm").
+-- 2) Copy its UUID and run:
+--
+--    insert into public.profiles (id, email, role)
+--    values ('<AUTH_USER_UUID>', '<owner-email>', 'owner')
+--    on conflict (id) do update set role = 'owner';
+-- ============================================================
