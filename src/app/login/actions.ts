@@ -26,10 +26,23 @@ export async function login(_prev: unknown, formData: FormData) {
   if (user) {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, company_id')
       .eq('id', user.id)
       .single()
-    if (profile?.role === 'owner') dest = '/owner'
+
+    if (profile?.role === 'owner') {
+      dest = '/owner'
+    } else if (profile?.company_id) {
+      const { data: company } = await supabase
+        .from('companies')
+        .select('active')
+        .eq('id', profile.company_id)
+        .single()
+      if (company && company.active === false) {
+        await supabase.auth.signOut()
+        return { error: 'Esta cuenta está desactivada. Contacta al propietario.' }
+      }
+    }
   }
 
   redirect(dest)

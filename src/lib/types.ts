@@ -1,10 +1,31 @@
 export type Role = 'owner' | 'admin'
 
+export type Plan = 'basic' | 'pro'
+export type PaymentMethod = 'binance' | 'pagomovil' | 'transferencia'
+export type PaymentStatus = 'pending' | 'validated' | 'rejected'
+
+export interface Payment {
+  id: string
+  plan: Plan
+  amount_usd: number
+  amount_bs: number | null
+  dolar_rate: number | null
+  method: PaymentMethod
+  reference: string | null
+  proof_url: string | null
+  buyer_name: string | null
+  buyer_email: string | null
+  buyer_phone: string | null
+  status: PaymentStatus
+  created_at: string
+}
+
 export interface Company {
   id: string
   name: string
   slug: string
   logo_url: string | null
+  active: boolean
   created_at: string
 }
 

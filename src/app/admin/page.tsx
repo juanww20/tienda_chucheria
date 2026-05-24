@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getSessionContext } from '@/lib/auth'
+import { logout } from '@/app/login/actions'
 import { suggestCombos, computeVelocity } from '@/lib/algorithm'
 import type { Product, Sale } from '@/lib/types'
 import AdminApp from './AdminApp'
@@ -14,6 +15,24 @@ export default async function AdminPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f8f9fa] p-6 text-center text-gray-500">
         Tu usuario no tiene empresa asignada. Contacta al propietario.
+      </div>
+    )
+  }
+
+  if (!company.active) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#f8f9fa] p-6 text-center">
+        <p className="text-5xl">🚫</p>
+        <h1 className="text-xl font-bold text-gray-800">Cuenta desactivada</h1>
+        <p className="max-w-sm text-gray-500">
+          El acceso de <strong>{company.name}</strong> fue desactivado por el propietario.
+          Contáctalo para reactivarlo.
+        </p>
+        <form action={logout}>
+          <button type="submit" className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100">
+            Cerrar sesión
+          </button>
+        </form>
       </div>
     )
   }

@@ -27,9 +27,25 @@ export async function addProduct(formData: FormData): Promise<void> {
   const price = Number(formData.get('price') || 0)
   const stock = parseInt(String(formData.get('stock') || '0'), 10) || 0
   const emoji = String(formData.get('emoji') || '🍬').trim() || '🍬'
+
+  // Optional product image (uploaded via service role -> public bucket)
+  let image_url: string | null = null
+  const image = formData.get('image') as File | null
+  if (image && image.size > 0 && image.type.startsWith('image/')) {
+    const admin = createAdminClient()
+    const ext = (image.name.split('.').pop() || 'jpg').toLowerCase()
+    const path = `${companyId}/${Date.now()}.${ext}`
+    const { error } = await admin.storage
+      .from('products')
+      .upload(path, image, { contentType: image.type, upsert: true })
+    if (!error) {
+      image_url = admin.storage.from('products').getPublicUrl(path).data.publicUrl
+    }
+  }
+
   await supabase
     .from('products')
-    .insert({ company_id: companyId, name, price, stock, emoji })
+    .insert({ company_id: companyId, name, price, stock, emoji, image_url })
   revalidatePath('/admin')
 }
 

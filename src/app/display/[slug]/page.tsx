@@ -15,11 +15,11 @@ export default async function DisplayPage({
 
   const { data: company } = await admin
     .from('companies')
-    .select('id, name, logo_url')
+    .select('id, name, logo_url, active')
     .eq('slug', slug)
     .single()
 
-  if (!company) notFound()
+  if (!company || company.active === false) notFound()
 
   const { data: combosData } = await admin
     .from('combos')

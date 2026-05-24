@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import Image from 'next/image'
 import gsap from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { recordSale, toggleComboTv, sellCombo, deleteCombo } from '../actions'
@@ -49,7 +50,17 @@ export default function VentasCombos({ products, combos }: Props) {
               >
                 <div className="flex items-start justify-between">
                   <div>
-                    <span className="text-4xl">{p.emoji ?? '🍬'}</span>
+                    {p.image_url ? (
+                      <Image
+                        src={p.image_url}
+                        alt={p.name}
+                        width={56}
+                        height={56}
+                        className="h-14 w-14 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <span className="text-4xl">{p.emoji ?? '🍬'}</span>
+                    )}
                     <h3 className="mt-2 font-semibold text-white">{p.name}</h3>
                     <p className="text-sm text-gray-400">Stock: {p.stock}</p>
                   </div>

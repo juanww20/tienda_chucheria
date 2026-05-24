@@ -5,7 +5,7 @@ import { useFormStatus } from 'react-dom'
 import Image from 'next/image'
 import gsap from 'gsap'
 import { useGSAP } from '@gsap/react'
-import { createCompany, deleteCompany, type OwnerActionState } from './actions'
+import { createCompany, toggleCompanyActive, type OwnerActionState } from './actions'
 
 gsap.registerPlugin(useGSAP)
 
@@ -14,6 +14,7 @@ type CompanyRow = {
   name: string
   slug: string
   logo_url: string | null
+  active: boolean
   created_at: string
   adminEmail: string | null
 }
@@ -190,13 +191,19 @@ export default function OwnerConsole({ companies }: { companies: CompanyRow[] })
                 <tr>
                   <th className="p-4 font-semibold">Empresa</th>
                   <th className="p-4 font-semibold">Admin</th>
+                  <th className="p-4 font-semibold">Estado</th>
                   <th className="p-4 font-semibold">URL de TV</th>
                   <th className="p-4 text-right font-semibold">Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {companies.map((c) => (
-                  <tr key={c.id} className="company-row border-b border-gray-100 hover:bg-gray-50">
+                  <tr
+                    key={c.id}
+                    className={`company-row border-b border-gray-100 hover:bg-gray-50 ${
+                      c.active ? '' : 'bg-gray-50/60 opacity-60'
+                    }`}
+                  >
                     <td className="p-4">
                       <div className="flex items-center gap-3">
                         <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-gray-100">
@@ -210,6 +217,17 @@ export default function OwnerConsole({ companies }: { companies: CompanyRow[] })
                       </div>
                     </td>
                     <td className="p-4 text-gray-600">{c.adminEmail ?? '—'}</td>
+                    <td className="p-4">
+                      {c.active ? (
+                        <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
+                          ● Activa
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-gray-200 px-3 py-1 text-xs font-medium text-gray-500">
+                          ● Inactiva
+                        </span>
+                      )}
+                    </td>
                     <td className="p-4">
                       <div className="flex items-center gap-2">
                         <a
@@ -230,15 +248,25 @@ export default function OwnerConsole({ companies }: { companies: CompanyRow[] })
                     </td>
                     <td className="p-4 text-right">
                       <form
-                        action={deleteCompany}
+                        action={toggleCompanyActive}
                         onSubmit={(e) => {
-                          if (!confirm(`¿Eliminar "${c.name}" y todos sus datos? Esta acción no se puede deshacer.`))
-                            e.preventDefault()
+                          const msg = c.active
+                            ? `¿Desactivar "${c.name}"? Su admin no podrá ingresar (los datos se conservan).`
+                            : `¿Reactivar "${c.name}"? Su admin podrá ingresar de nuevo.`
+                          if (!confirm(msg)) e.preventDefault()
                         }}
                       >
                         <input type="hidden" name="companyId" value={c.id} />
-                        <button type="submit" className="text-xs font-medium text-red-500 transition hover:text-red-700">
-                          🗑 Eliminar
+                        <input type="hidden" name="next" value={(!c.active).toString()} />
+                        <button
+                          type="submit"
+                          className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                            c.active
+                              ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                              : 'bg-green-100 text-green-700 hover:bg-green-200'
+                          }`}
+                        >
+                          {c.active ? 'Desactivar' : 'Activar'}
                         </button>
                       </form>
                     </td>

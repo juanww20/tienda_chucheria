@@ -12,8 +12,11 @@ create table if not exists public.companies (
   name        text not null,
   slug        text unique not null,
   logo_url    text,
+  active      boolean not null default true,
   created_at  timestamptz not null default now()
 );
+-- For existing databases:
+alter table public.companies add column if not exists active boolean not null default true;
 
 create table if not exists public.profiles (
   id          uuid primary key references auth.users(id) on delete cascade,
@@ -125,6 +128,45 @@ create policy "combo_items_rw" on public.combo_items
             where c.id = combo_id
               and (c.company_id = public.current_company_id() or public.is_owner())));
 
+-- Payments (landing checkout) -------------------------------
+create table if not exists public.payments (
+  id           uuid primary key default gen_random_uuid(),
+  plan         text not null,                       -- 'basic' | 'pro'
+  amount_usd   numeric(10,2) not null,
+  amount_bs    numeric(14,2),
+  dolar_rate   numeric(12,4),
+  method       text not null,                       -- 'binance' | 'pagomovil' | 'transferencia'
+  reference    text,
+  proof_url    text,
+  buyer_name   text,
+  buyer_email  text,
+  buyer_phone  text,
+  status       text not null default 'pending',     -- pending | validated | rejected
+  created_at   timestamptz not null default now()
+);
+create index if not exists idx_payments_created on public.payments(created_at desc);
+
+alter table public.payments enable row level security;
+-- Only the owner can read/update. Inserts happen server-side via service role.
+drop policy if exists "payments_owner_read" on public.payments;
+create policy "payments_owner_read" on public.payments
+  for select using (public.is_owner());
+drop policy if exists "payments_owner_update" on public.payments;
+create policy "payments_owner_update" on public.payments
+  for update using (public.is_owner()) with check (public.is_owner());
+
+grant all on public.payments to service_role;
+grant select, update on public.payments to authenticated;
+
+-- Storage bucket for payment proofs (public read) -----------
+insert into storage.buckets (id, name, public)
+values ('payments', 'payments', true)
+on conflict (id) do nothing;
+
+drop policy if exists "payments_public_read" on storage.objects;
+create policy "payments_public_read" on storage.objects
+  for select using (bucket_id = 'payments');
+
 -- Storage bucket for logos (public read) --------------------
 insert into storage.buckets (id, name, public)
 values ('logos', 'logos', true)
@@ -133,6 +175,15 @@ on conflict (id) do nothing;
 drop policy if exists "logos_public_read" on storage.objects;
 create policy "logos_public_read" on storage.objects
   for select using (bucket_id = 'logos');
+
+-- Storage bucket for product images (public read) -----------
+insert into storage.buckets (id, name, public)
+values ('products', 'products', true)
+on conflict (id) do nothing;
+
+drop policy if exists "products_public_read" on storage.objects;
+create policy "products_public_read" on storage.objects
+  for select using (bucket_id = 'products');
 
 -- NOTE: logo uploads are performed server-side with the SERVICE ROLE key,
 -- which bypasses RLS, so no insert policy is needed for the owner flow.

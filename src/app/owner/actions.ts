@@ -114,22 +114,30 @@ export async function createCompany(
   return { success: `Empresa "${name}" creada. El admin ya puede ingresar.` }
 }
 
-export async function deleteCompany(formData: FormData): Promise<void> {
+/**
+ * Enable/disable a company. Disabling bans its admin user(s) so they can no
+ * longer sign in (existing sessions die on next token refresh). No data is
+ * deleted — re-activating restores access.
+ */
+export async function toggleCompanyActive(formData: FormData): Promise<void> {
   await assertOwner()
   const companyId = String(formData.get('companyId') || '')
+  const next = String(formData.get('next') || '') === 'true'
   if (!companyId) return
 
   const admin = createAdminClient()
 
-  // Remove auth users belonging to this company
+  await admin.from('companies').update({ active: next }).eq('id', companyId)
+
   const { data: profiles } = await admin
     .from('profiles')
     .select('id')
     .eq('company_id', companyId)
   for (const p of profiles ?? []) {
-    await admin.auth.admin.deleteUser(p.id)
+    await admin.auth.admin.updateUserById(p.id, {
+      ban_duration: next ? 'none' : '876000h',
+    })
   }
 
-  await admin.from('companies').delete().eq('id', companyId)
   revalidatePath('/owner')
 }

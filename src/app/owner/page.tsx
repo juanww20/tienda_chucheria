@@ -21,6 +21,7 @@ export default async function OwnerPage() {
     name: c.name as string,
     slug: c.slug as string,
     logo_url: c.logo_url as string | null,
+    active: (c.active ?? true) as boolean,
     created_at: c.created_at as string,
     adminEmail:
       (c.profiles as { email: string | null }[] | null)?.[0]?.email ?? null,
