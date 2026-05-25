@@ -82,9 +82,13 @@ function round2(n: number) {
  */
 export function suggestCombos(
   products: ProductWithVelocity[],
+  excludeIds: Set<string> = new Set(),
   max = 6
 ): ComboSuggestion[] {
-  const inStock = products.filter((p) => p.stock > 0)
+  // Only active, in-stock products that aren't already part of a combo.
+  const inStock = products.filter(
+    (p) => p.active && p.stock > 0 && !excludeIds.has(p.id)
+  )
   if (inStock.length < 2) return []
 
   const fastPool = inStock

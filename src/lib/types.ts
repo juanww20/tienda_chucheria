@@ -45,6 +45,14 @@ export interface Profile {
   created_at: string
 }
 
+export interface Category {
+  id: string
+  company_id: string
+  name: string
+  emoji: string | null
+  created_at: string
+}
+
 export interface Product {
   id: string
   company_id: string
@@ -56,6 +64,8 @@ export interface Product {
   expires_at: string | null
   rate_mode: RateMode | null
   custom_rate: number | null
+  active: boolean
+  category_id: string | null
   created_at: string
 }
 
@@ -95,14 +105,22 @@ export interface ProductWithVelocity extends Product {
   nearExpiry: boolean
 }
 
+export interface ComboItemView {
+  id: string
+  name: string
+  emoji: string | null
+  image_url: string | null
+  stock: number
+  price: number
+}
+
 export interface ComboView {
   id: string
   name: string
   price_offer: number
   original_price: number
   on_tv: boolean
-  productIds: string[]
-  productNames: string[]
+  items: ComboItemView[]
 }
 
 export interface AdminStats {
@@ -115,8 +133,8 @@ export interface AdminStats {
 
 // Output of the inventory-rotation algorithm
 export interface ComboSuggestion {
-  fast: Product
-  slow: Product
+  fast: ProductWithVelocity
+  slow: ProductWithVelocity
   originalPrice: number
   suggestedPrice: number
   discountPct: number

@@ -1,13 +1,27 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import gsap from 'gsap'
 import { useGSAP } from '@gsap/react'
-import { addProduct, updateStock, deleteProduct } from '../actions'
-import type { Company, ProductWithVelocity, RateMode, RotationStatus } from '@/lib/types'
+import {
+  addProduct,
+  updateStock,
+  deleteProduct,
+  toggleProductActive,
+  createCategory,
+  deleteCategory,
+} from '../actions'
+import type {
+  Category,
+  Company,
+  ProductWithVelocity,
+  RateMode,
+  RotationStatus,
+} from '@/lib/types'
 import { type Rates, convertPrice, formatConverted, resolveRate, RATE_LABEL } from '@/lib/rates'
 import SubmitButton from './SubmitButton'
+import ProductEditModal from './ProductEditModal'
 
 gsap.registerPlugin(useGSAP)
 
@@ -29,27 +43,139 @@ interface Props {
   products: ProductWithVelocity[]
   company: Company
   rates: Rates
+  categories: Category[]
 }
 
-export default function Inventario({ products, company, rates }: Props) {
+type ExpiryFilter = 'all' | 'expired' | 'soon7' | 'soon30' | 'none'
+type ActiveFilter = 'all' | 'active' | 'inactive'
+
+export default function Inventario({ products, company, rates, categories }: Props) {
   const root = useRef<HTMLDivElement>(null)
   const formRef = useRef<HTMLFormElement>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [rateMode, setRateMode] = useState<'' | RateMode>('')
+  const [editing, setEditing] = useState<ProductWithVelocity | null>(null)
+  const [showCats, setShowCats] = useState(false)
+
+  // Filters
+  const [q, setQ] = useState('')
+  const [catFilter, setCatFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | RotationStatus>('all')
+  const [expiryFilter, setExpiryFilter] = useState<ExpiryFilter>('all')
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>('all')
+
+  const catMap = useMemo(() => {
+    const m = new Map<string, Category>()
+    categories.forEach((c) => m.set(c.id, c))
+    return m
+  }, [categories])
+
+  const filtered = useMemo(() => {
+    const term = q.trim().toLowerCase()
+    return products.filter((p) => {
+      if (term) {
+        const cat = p.category_id ? catMap.get(p.category_id)?.name ?? '' : ''
+        const hay = `${p.name} ${p.emoji ?? ''} ${cat} ${p.price}`.toLowerCase()
+        if (!hay.includes(term)) return false
+      }
+      if (catFilter !== 'all') {
+        if (catFilter === 'none' ? p.category_id : p.category_id !== catFilter) return false
+      }
+      if (statusFilter !== 'all' && p.status !== statusFilter) return false
+      if (activeFilter === 'active' && !p.active) return false
+      if (activeFilter === 'inactive' && p.active) return false
+      if (expiryFilter !== 'all') {
+        const d = p.daysToExpiry
+        if (expiryFilter === 'none' && d !== null) return false
+        if (expiryFilter === 'expired' && !(d !== null && d < 0)) return false
+        if (expiryFilter === 'soon7' && !(d !== null && d >= 0 && d <= 7)) return false
+        if (expiryFilter === 'soon30' && !(d !== null && d >= 0 && d <= 30)) return false
+      }
+      return true
+    })
+  }, [products, q, catFilter, statusFilter, activeFilter, expiryFilter, catMap])
 
   useGSAP(
     () => {
-      gsap.from('.inv-row', { x: -16, opacity: 0, duration: 0.35, stagger: 0.04, ease: 'power2.out' })
+      gsap.from('.inv-row', { x: -12, opacity: 0, duration: 0.3, stagger: 0.03, ease: 'power2.out' })
     },
-    { scope: root, dependencies: [products.length] }
+    { scope: root, dependencies: [filtered.length] }
   )
+
+  const inputCls =
+    'rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#f06292]'
 
   return (
     <div ref={root} className="mx-auto max-w-7xl">
-      <h1 className="mb-2 text-2xl font-bold text-gray-800">📦 Inventario</h1>
-      <p className="mb-6 text-gray-500">
-        Agrega productos en USD, define vencimiento y cómo se muestran en la TV.
-      </p>
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="mb-1 text-2xl font-bold text-gray-800">📦 Inventario</h1>
+          <p className="text-gray-500">Busca, filtra, edita y organiza tus productos.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowCats((s) => !s)}
+          className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100"
+        >
+          🏷️ Categorías ({categories.length})
+        </button>
+      </div>
+
+      {/* Category manager */}
+      {showCats && (
+        <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+          <h2 className="mb-3 font-bold text-gray-800">Tus categorías</h2>
+          <form
+            action={createCategory}
+            className="mb-4 flex flex-wrap gap-2"
+          >
+            <input
+              name="emoji"
+              maxLength={2}
+              defaultValue="🏷️"
+              aria-label="Emoji categoría"
+              className="w-14 rounded-lg border border-gray-300 text-center text-xl outline-none focus:ring-2 focus:ring-[#f06292]"
+            />
+            <input
+              name="name"
+              required
+              placeholder="Nueva categoría (ej: Chocolates)"
+              className={`${inputCls} flex-1`}
+            />
+            <SubmitButton
+              pendingText="…"
+              className="rounded-lg bg-[#8e44ad] px-4 py-2 text-sm font-semibold text-white hover:bg-[#7d3c9d]"
+            >
+              + Crear
+            </SubmitButton>
+          </form>
+          <div className="flex flex-wrap gap-2">
+            {categories.length === 0 && (
+              <p className="text-sm text-gray-400">Aún no tienes categorías.</p>
+            )}
+            {categories.map((c) => (
+              <span
+                key={c.id}
+                className="flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1.5 text-sm text-gray-700"
+              >
+                {c.emoji} {c.name}
+                <form
+                  action={deleteCategory}
+                  onSubmit={(e) => {
+                    if (!confirm(`¿Eliminar la categoría "${c.name}"? Los productos quedan sin categoría.`))
+                      e.preventDefault()
+                  }}
+                >
+                  <input type="hidden" name="id" value={c.id} />
+                  <button type="submit" className="text-red-400 hover:text-red-600">
+                    ✕
+                  </button>
+                </form>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Add product card */}
       <form
@@ -68,7 +194,6 @@ export default function Inventario({ products, company, rates }: Props) {
         </div>
 
         <div className="grid grid-cols-1 gap-5 p-5 md:grid-cols-[auto_1fr]">
-          {/* Image + emoji */}
           <div className="flex gap-3">
             <label className="group relative flex h-28 w-28 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 transition hover:border-[#f06292] hover:bg-[#f06292]/5">
               {preview ? (
@@ -78,7 +203,7 @@ export default function Inventario({ products, company, rates }: Props) {
                 <>
                   <span className="text-3xl">📷</span>
                   <span className="mt-1 text-xs font-medium text-gray-400 group-hover:text-[#f06292]">
-                    Subir foto
+                    Foto (auto)
                   </span>
                 </>
               )}
@@ -105,55 +230,42 @@ export default function Inventario({ products, company, rates }: Props) {
             </div>
           </div>
 
-          {/* Fields */}
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div className="col-span-2 sm:col-span-4">
               <label className="mb-1 block text-xs font-semibold text-gray-600">Nombre</label>
-              <input
-                name="name"
-                required
-                placeholder="Ej: Chocolate Savoy"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-[#f06292]"
-              />
+              <input name="name" required placeholder="Ej: Chocolate Savoy" className={`${inputCls} w-full`} />
             </div>
-
             <div>
               <label className="mb-1 block text-xs font-semibold text-gray-600">Precio (USD)</label>
-              <input
-                name="price"
-                type="number"
-                step="0.01"
-                required
-                placeholder="0.00"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-[#f06292]"
-              />
+              <input name="price" type="number" step="0.01" required placeholder="0.00" className={`${inputCls} w-full`} />
             </div>
             <div>
               <label className="mb-1 block text-xs font-semibold text-gray-600">Stock</label>
-              <input
-                name="stock"
-                type="number"
-                required
-                placeholder="0"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-[#f06292]"
-              />
+              <input name="stock" type="number" required placeholder="0" className={`${inputCls} w-full`} />
             </div>
             <div>
               <label className="mb-1 block text-xs font-semibold text-gray-600">Vencimiento</label>
-              <input
-                name="expires_at"
-                type="date"
-                aria-label="Fecha de vencimiento"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-600 outline-none focus:ring-2 focus:ring-[#f06292]"
-              />
+              <input name="expires_at" type="date" aria-label="Vencimiento" className={`${inputCls} w-full text-gray-600`} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-gray-600">Categoría</label>
+              <select name="category_id" aria-label="Categoría" className={`${inputCls} w-full text-gray-600`}>
+                <option value="">Sin categoría</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.emoji} {c.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="mb-1 block text-xs font-semibold text-gray-600">Tasa en TV</label>
               <select
                 name="rate_mode"
+                aria-label="Tasa en TV"
                 value={rateMode}
                 onChange={(e) => setRateMode(e.target.value as RateMode | '')}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-600 outline-none focus:ring-2 focus:ring-[#f06292]"
+                className={`${inputCls} w-full text-gray-600`}
               >
                 <option value="">Heredar ({RATE_LABEL[company.rate_mode]})</option>
                 <option value="binance">Binance</option>
@@ -162,25 +274,15 @@ export default function Inventario({ products, company, rates }: Props) {
                 <option value="custom">Tasa propia</option>
               </select>
             </div>
-
             {rateMode === 'custom' && (
-              <div className="col-span-2 sm:col-span-2">
-                <label className="mb-1 block text-xs font-semibold text-gray-600">
-                  Tasa propia (Bs por USD)
-                </label>
-                <input
-                  name="custom_rate"
-                  type="number"
-                  step="0.01"
-                  placeholder="Ej: 40.00"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-[#f06292]"
-                />
+              <div className="col-span-2">
+                <label className="mb-1 block text-xs font-semibold text-gray-600">Bs por USD</label>
+                <input name="custom_rate" type="number" step="0.01" placeholder="Ej: 40.00" className={`${inputCls} w-full`} />
               </div>
             )}
-
             <div className="col-span-2 sm:col-span-4">
               <SubmitButton
-                pendingText="Agregando…"
+                pendingText="Agregando (buscando foto)…"
                 className="w-full rounded-lg bg-gradient-to-r from-[#8e44ad] to-[#d81b60] py-2.5 font-bold text-white transition hover:shadow-lg disabled:opacity-50"
               >
                 + Agregar producto
@@ -189,10 +291,50 @@ export default function Inventario({ products, company, rates }: Props) {
           </div>
         </div>
         <p className="border-t border-gray-100 px-5 py-2 text-xs text-gray-400">
-          💡 La foto y el vencimiento son opcionales. Sin foto se usa el emoji. La tasa "Heredar"
-          usa la de la empresa (cámbiala en Ajustes).
+          💡 Si no subes foto, se busca una automáticamente por el nombre. El emoji es el respaldo.
         </p>
       </form>
+
+      {/* Search + filters */}
+      <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-6">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="🔍 Buscar por nombre, categoría, precio…"
+          className={`${inputCls} lg:col-span-2`}
+          aria-label="Buscar"
+        />
+        <select value={catFilter} onChange={(e) => setCatFilter(e.target.value)} aria-label="Categoría" className={inputCls}>
+          <option value="all">Todas las categorías</option>
+          <option value="none">Sin categoría</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.emoji} {c.name}
+            </option>
+          ))}
+        </select>
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as 'all' | RotationStatus)} aria-label="Rotación" className={inputCls}>
+          <option value="all">Toda rotación</option>
+          <option value="nuevo">🆕 Nuevo</option>
+          <option value="rapido">🚀 Rápido</option>
+          <option value="lento">🐢 Lento</option>
+        </select>
+        <select value={expiryFilter} onChange={(e) => setExpiryFilter(e.target.value as ExpiryFilter)} aria-label="Vencimiento" className={inputCls}>
+          <option value="all">Todo vencimiento</option>
+          <option value="expired">⛔ Vencidos</option>
+          <option value="soon7">⏰ ≤ 7 días</option>
+          <option value="soon30">⏳ ≤ 30 días</option>
+          <option value="none">Sin fecha</option>
+        </select>
+        <select value={activeFilter} onChange={(e) => setActiveFilter(e.target.value as ActiveFilter)} aria-label="Estado" className={inputCls}>
+          <option value="all">Activos e inactivos</option>
+          <option value="active">Solo activos</option>
+          <option value="inactive">Solo inactivos</option>
+        </select>
+      </div>
+      <p className="mb-2 text-xs text-gray-400">
+        Mostrando {filtered.length} de {products.length} productos
+      </p>
 
       {/* Table */}
       <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
@@ -202,47 +344,49 @@ export default function Inventario({ products, company, rates }: Props) {
               <tr>
                 <th className="p-4 font-semibold">Producto</th>
                 <th className="p-4 font-semibold">Precio</th>
-                <th className="p-4 font-semibold">En TV</th>
                 <th className="p-4 font-semibold">Stock</th>
                 <th className="p-4 font-semibold">Rotación</th>
                 <th className="p-4 font-semibold">Vence</th>
-                <th className="p-4 font-semibold" />
+                <th className="p-4 font-semibold">Estado</th>
+                <th className="p-4 text-right font-semibold">Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {products.map((p) => {
+              {filtered.map((p) => {
                 const tag = STATUS_TAG[p.status]
                 const exp = expiryTag(p.daysToExpiry)
+                const cat = p.category_id ? catMap.get(p.category_id) : null
                 const r = resolveRate(p.rate_mode, p.custom_rate, company.rate_mode, company.custom_rate)
                 const conv = convertPrice(p.price, r.mode, r.custom, rates)
                 return (
-                  <tr key={p.id} className="inv-row border-b border-gray-100 hover:bg-gray-50">
+                  <tr
+                    key={p.id}
+                    className={`inv-row border-b border-gray-100 hover:bg-gray-50 ${
+                      p.active ? '' : 'opacity-50'
+                    }`}
+                  >
                     <td className="p-4 font-medium text-gray-800">
                       <div className="flex items-center gap-3">
                         {p.image_url ? (
-                          <Image
-                            src={p.image_url}
-                            alt={p.name}
-                            width={40}
-                            height={40}
-                            className="h-10 w-10 rounded-lg object-cover"
-                          />
+                          <Image src={p.image_url} alt={p.name} width={40} height={40} className="h-10 w-10 rounded-lg object-cover" />
                         ) : (
                           <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-xl">
                             {p.emoji}
                           </span>
                         )}
-                        {p.name}
+                        <div>
+                          <p>{p.name}</p>
+                          {cat && (
+                            <span className="text-xs text-gray-400">
+                              {cat.emoji} {cat.name}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td className="p-4">
                       <p className="font-bold text-[#4dd0e1]">${p.price}</p>
                       <p className="text-xs text-gray-400">{formatConverted(conv)}</p>
-                    </td>
-                    <td className="p-4">
-                      <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600">
-                        {conv.label}
-                      </span>
                     </td>
                     <td className="p-4">
                       <form action={updateStock} className="flex items-center gap-2">
@@ -254,48 +398,66 @@ export default function Inventario({ products, company, rates }: Props) {
                           defaultValue={p.stock}
                           className="w-16 rounded-lg border border-gray-300 px-2 py-1 text-center"
                         />
-                        <SubmitButton
-                          pendingText="…"
-                          className="rounded-lg bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-200"
-                        >
+                        <SubmitButton pendingText="…" className="rounded-lg bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-200">
                           ✓
                         </SubmitButton>
                       </form>
                     </td>
                     <td className="p-4">
-                      <span className={`rounded-full px-3 py-1 text-xs font-medium ${tag.cls}`}>
-                        {tag.label}
-                      </span>
+                      <span className={`rounded-full px-3 py-1 text-xs font-medium ${tag.cls}`}>{tag.label}</span>
                     </td>
                     <td className="p-4">
                       {exp ? (
-                        <span className={`rounded-full px-2 py-1 text-xs font-medium ${exp.cls}`}>
-                          {exp.label}
-                        </span>
+                        <span className={`rounded-full px-2 py-1 text-xs font-medium ${exp.cls}`}>{exp.label}</span>
                       ) : (
                         <span className="text-xs text-gray-300">—</span>
                       )}
                     </td>
-                    <td className="p-4 text-right">
-                      <form
-                        action={deleteProduct}
-                        onSubmit={(e) => {
-                          if (!confirm(`¿Eliminar "${p.name}"?`)) e.preventDefault()
-                        }}
-                      >
+                    <td className="p-4">
+                      <form action={toggleProductActive}>
                         <input type="hidden" name="id" value={p.id} />
-                        <button type="submit" className="text-red-400 transition hover:text-red-600">
-                          🗑
+                        <input type="hidden" name="next" value={(!p.active).toString()} />
+                        <button
+                          type="submit"
+                          className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                            p.active
+                              ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                              : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
+                          }`}
+                        >
+                          {p.active ? 'Activo' : 'Inactivo'}
                         </button>
                       </form>
+                    </td>
+                    <td className="p-4">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setEditing(p)}
+                          className="rounded-lg bg-[#8e44ad]/10 px-2.5 py-1.5 text-xs font-semibold text-[#8e44ad] hover:bg-[#8e44ad]/20"
+                        >
+                          ✏️ Editar
+                        </button>
+                        <form
+                          action={deleteProduct}
+                          onSubmit={(e) => {
+                            if (!confirm(`¿Eliminar "${p.name}"?`)) e.preventDefault()
+                          }}
+                        >
+                          <input type="hidden" name="id" value={p.id} />
+                          <button type="submit" className="text-red-400 transition hover:text-red-600">
+                            🗑
+                          </button>
+                        </form>
+                      </div>
                     </td>
                   </tr>
                 )
               })}
-              {products.length === 0 && (
+              {filtered.length === 0 && (
                 <tr>
                   <td colSpan={7} className="p-10 text-center text-gray-400">
-                    Sin productos todavía.
+                    {products.length === 0 ? 'Sin productos todavía.' : 'Ningún producto coincide con los filtros.'}
                   </td>
                 </tr>
               )}
@@ -306,11 +468,19 @@ export default function Inventario({ products, company, rates }: Props) {
 
       <div className="mt-6 rounded-xl bg-gradient-to-r from-[#fff176]/20 to-[#f06292]/20 p-4">
         <p className="text-sm text-gray-700">
-          💡 <strong>Tip Chuchu:</strong> Los productos 🐢 lentos y los ⏰ próximos a vencer se
-          combinan automáticamente con los 🚀 rápidos en <strong>Sugerencias IA</strong>. Los 🆕
-          nuevos no se penalizan hasta tener una semana de ventas.
+          💡 <strong>Tip Chuchu:</strong> Desactiva un producto para que no aparezca en combos ni en
+          ventas. Los 🐢 lentos y ⏰ próximos a vencer se sugieren en <strong>Sugerencias IA</strong>.
         </p>
       </div>
+
+      {editing && (
+        <ProductEditModal
+          product={editing}
+          categories={categories}
+          company={company}
+          onClose={() => setEditing(null)}
+        />
+      )}
     </div>
   )
 }

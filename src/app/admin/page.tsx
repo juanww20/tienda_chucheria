@@ -4,7 +4,7 @@ import { getSessionContext } from '@/lib/auth'
 import { logout } from '@/app/login/actions'
 import { suggestCombos, computeProductMeta } from '@/lib/algorithm'
 import { getRates } from '@/lib/rates'
-import type { Product, Sale } from '@/lib/types'
+import type { Category, Product, Sale } from '@/lib/types'
 import AdminApp from './AdminApp'
 
 export const dynamic = 'force-dynamic'
@@ -41,32 +41,52 @@ export default async function AdminPage() {
   const supabase = await createClient()
   const since = new Date(Date.now() - 30 * 86_400_000).toISOString()
 
-  const [{ data: productsData }, { data: combosData }, { data: salesData }] =
-    await Promise.all([
-      supabase
-        .from('products')
-        .select('*')
-        .eq('company_id', company.id)
-        .order('created_at', { ascending: true }),
-      supabase
-        .from('combos')
-        .select('*, combo_items(product_id, products(name, emoji))')
-        .eq('company_id', company.id)
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('sales')
-        .select('*')
-        .eq('company_id', company.id)
-        .gte('sold_at', since),
-    ])
+  const [
+    { data: productsData },
+    { data: combosData },
+    { data: salesData },
+    { data: categoriesData },
+  ] = await Promise.all([
+    supabase
+      .from('products')
+      .select('*')
+      .eq('company_id', company.id)
+      .order('created_at', { ascending: true }),
+    supabase
+      .from('combos')
+      .select('*, combo_items(product_id, products(id, name, emoji, image_url, stock, price))')
+      .eq('company_id', company.id)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('sales')
+      .select('*')
+      .eq('company_id', company.id)
+      .gte('sold_at', since),
+    supabase
+      .from('categories')
+      .select('*')
+      .eq('company_id', company.id)
+      .order('name', { ascending: true }),
+  ])
 
   const products = (productsData ?? []) as Product[]
   const sales = (salesData ?? []) as Sale[]
+  const categories = (categoriesData ?? []) as Category[]
   const rates = await getRates()
 
   const combos = (combosData ?? []).map((c) => {
     const items = (c.combo_items as unknown as
-      | { product_id: string; products: { name: string; emoji: string | null } | null }[]
+      | {
+          product_id: string
+          products: {
+            id: string
+            name: string
+            emoji: string | null
+            image_url: string | null
+            stock: number
+            price: number
+          } | null
+        }[]
       | null) ?? []
     return {
       id: c.id as string,
@@ -74,14 +94,29 @@ export default async function AdminPage() {
       price_offer: Number(c.price_offer),
       original_price: Number(c.original_price),
       on_tv: c.on_tv as boolean,
-      productIds: items.map((i) => i.product_id),
-      productNames: items.map((i) => i.products?.name ?? '—'),
+      items: items
+        .filter((i) => i.products)
+        .map((i) => ({
+          id: i.products!.id,
+          name: i.products!.name,
+          emoji: i.products!.emoji,
+          image_url: i.products!.image_url,
+          stock: i.products!.stock,
+          price: Number(i.products!.price),
+        })),
     }
   })
 
   // Velocity + rotation + expiry meta for inventory and suggestions
   const productsWithVelocity = computeProductMeta(products, sales)
-  const suggestions = suggestCombos(productsWithVelocity)
+  // Products already used in a combo shouldn't be suggested again.
+  const comboedIds = new Set<string>(
+    (combosData ?? []).flatMap(
+      (c) =>
+        (c.combo_items as { product_id: string }[] | null)?.map((i) => i.product_id) ?? []
+    )
+  )
+  const suggestions = suggestCombos(productsWithVelocity, comboedIds)
 
   // Report stats
   const now = Date.now()
@@ -109,6 +144,7 @@ export default async function AdminPage() {
       company={company}
       products={productsWithVelocity}
       combos={combos}
+      categories={categories}
       suggestions={suggestions}
       rates={rates}
       stats={{

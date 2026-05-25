@@ -22,6 +22,15 @@ alter table public.companies add column if not exists active boolean not null de
 alter table public.companies add column if not exists rate_mode text not null default 'binance';
 alter table public.companies add column if not exists custom_rate numeric(12,4);
 
+create table if not exists public.categories (
+  id          uuid primary key default gen_random_uuid(),
+  company_id  uuid not null references public.companies(id) on delete cascade,
+  name        text not null,
+  emoji       text default '🏷️',
+  created_at  timestamptz not null default now()
+);
+create index if not exists idx_categories_company on public.categories(company_id);
+
 create table if not exists public.profiles (
   id          uuid primary key references auth.users(id) on delete cascade,
   email       text,
@@ -41,12 +50,16 @@ create table if not exists public.products (
   expires_at  date,
   rate_mode   text,             -- null = inherit company; else binance|bcv|euro|custom
   custom_rate numeric(12,4),
+  active      boolean not null default true,
+  category_id uuid references public.categories(id) on delete set null,
   created_at  timestamptz not null default now()
 );
 -- For existing databases:
 alter table public.products add column if not exists expires_at date;
 alter table public.products add column if not exists rate_mode text;
 alter table public.products add column if not exists custom_rate numeric(12,4);
+alter table public.products add column if not exists active boolean not null default true;
+alter table public.products add column if not exists category_id uuid references public.categories(id) on delete set null;
 
 create table if not exists public.combos (
   id              uuid primary key default gen_random_uuid(),
@@ -97,6 +110,7 @@ $$;
 -- Row Level Security ----------------------------------------
 alter table public.companies   enable row level security;
 alter table public.profiles    enable row level security;
+alter table public.categories  enable row level security;
 alter table public.products    enable row level security;
 alter table public.combos      enable row level security;
 alter table public.combo_items enable row level security;
@@ -111,6 +125,12 @@ create policy "profiles_read" on public.profiles
 drop policy if exists "companies_read" on public.companies;
 create policy "companies_read" on public.companies
   for select using (id = public.current_company_id() or public.is_owner());
+
+-- categories: tenant-scoped
+drop policy if exists "categories_rw" on public.categories;
+create policy "categories_rw" on public.categories
+  for all using (company_id = public.current_company_id() or public.is_owner())
+  with check (company_id = public.current_company_id() or public.is_owner());
 
 -- generic tenant-scoped policies (products/combos/sales)
 drop policy if exists "products_rw" on public.products;

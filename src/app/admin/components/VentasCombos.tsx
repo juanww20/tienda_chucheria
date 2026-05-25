@@ -18,7 +18,10 @@ interface Props {
 
 export default function VentasCombos({ products, combos }: Props) {
   const [showCreator, setShowCreator] = useState(false)
+  const [editing, setEditing] = useState<ComboView | null>(null)
   const root = useRef<HTMLDivElement>(null)
+  // Inactive products are hidden from selling and combos.
+  const activeProducts = products.filter((p) => p.active)
 
   useGSAP(
     () => {
@@ -37,13 +40,13 @@ export default function VentasCombos({ products, combos }: Props) {
           Venta Rápida
         </h2>
 
-        {products.length === 0 ? (
+        {activeProducts.length === 0 ? (
           <p className="rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 py-10 text-center text-gray-400">
-            Sin productos. Agrégalos en Inventario 📦
+            Sin productos activos. Agrégalos o actívalos en Inventario 📦
           </p>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {products.map((p) => (
+            {activeProducts.map((p) => (
               <div
                 key={p.id}
                 className="vc-product rounded-xl border border-gray-700 bg-[#2d2d2d] p-4 shadow-md transition-shadow hover:shadow-xl"
@@ -113,87 +116,149 @@ export default function VentasCombos({ products, combos }: Props) {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            {combos.map((combo) => (
-              <div
-                key={combo.id}
-                className="vc-combo rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-800">{combo.name}</h3>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {combo.productNames.map((n, i) => (
-                        <span key={i} className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600">
-                          {n}
-                        </span>
-                      ))}
+            {combos.map((combo) => {
+              const discount =
+                combo.original_price > combo.price_offer
+                  ? Math.round((1 - combo.price_offer / combo.original_price) * 100)
+                  : 0
+              const savings = combo.original_price - combo.price_offer
+              const sellable = combo.items.length
+                ? Math.min(...combo.items.map((i) => i.stock))
+                : 0
+              return (
+                <div
+                  key={combo.id}
+                  className="vc-combo flex flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="truncate text-lg font-bold text-gray-800">{combo.name}</h3>
+                        {discount > 0 && (
+                          <span className="shrink-0 rounded-full bg-[#fff176] px-2 py-0.5 text-xs font-black text-gray-800">
+                            -{discount}%
+                          </span>
+                        )}
+                      </div>
+                      {/* product thumbnails */}
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        {combo.items.map((it) => (
+                          <span
+                            key={it.id}
+                            className="flex items-center gap-1 rounded-full bg-gray-100 py-1 pl-1 pr-2 text-xs text-gray-600"
+                          >
+                            {it.image_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={it.image_url} alt={it.name} className="h-5 w-5 rounded-full object-cover" />
+                            ) : (
+                              <span>{it.emoji}</span>
+                            )}
+                            {it.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-2xl font-bold text-[#4dd0e1]">${combo.price_offer}</p>
+                      {combo.original_price > combo.price_offer && (
+                        <p className="text-xs text-gray-400 line-through">${combo.original_price}</p>
+                      )}
+                      {savings > 0 && (
+                        <p className="text-xs font-medium text-green-600">ahorra ${savings.toFixed(2)}</p>
+                      )}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold text-[#4dd0e1]">${combo.price_offer}</p>
-                    {combo.original_price > combo.price_offer && (
-                      <p className="text-xs text-gray-400 line-through">${combo.original_price}</p>
-                    )}
-                  </div>
-                </div>
 
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-3">
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm text-gray-500">📺 En TV</span>
-                    <form action={toggleComboTv}>
-                      <input type="hidden" name="id" value={combo.id} />
-                      <input type="hidden" name="next" value={(!combo.on_tv).toString()} />
-                      <SubmitButton
-                        pendingText="…"
-                        className={`relative block h-6 w-12 rounded-full transition-colors ${
-                          combo.on_tv ? 'bg-[#4dd0e1]' : 'bg-gray-300'
-                        }`}
-                      >
-                        <span
-                          className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-md transition-all ${
-                            combo.on_tv ? 'left-7' : 'left-1'
-                          }`}
-                        />
-                      </SubmitButton>
-                    </form>
-                    {combo.on_tv && (
-                      <span className="rounded-full bg-[#fff176] px-2 py-1 text-xs font-medium text-gray-800">
-                        🔴 EN TV
+                  {/* stock health */}
+                  <div className="mt-3">
+                    {sellable <= 0 ? (
+                      <span className="rounded-full bg-red-50 px-2 py-1 text-xs font-medium text-red-600">
+                        ⚠️ Sin stock para armarlo
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-gray-50 px-2 py-1 text-xs text-gray-500">
+                        📦 {sellable} combo(s) disponibles
                       </span>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <form action={sellCombo}>
-                      <input type="hidden" name="comboId" value={combo.id} />
-                      <SubmitButton
-                        pendingText="…"
-                        className="rounded-lg bg-[#f06292] px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-[#d81b60] disabled:opacity-50"
+                  <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-500">📺 TV</span>
+                      <form action={toggleComboTv}>
+                        <input type="hidden" name="id" value={combo.id} />
+                        <input type="hidden" name="next" value={(!combo.on_tv).toString()} />
+                        <SubmitButton
+                          pendingText="…"
+                          className={`relative block h-6 w-12 rounded-full transition-colors ${
+                            combo.on_tv ? 'bg-[#4dd0e1]' : 'bg-gray-300'
+                          }`}
+                        >
+                          <span
+                            className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-md transition-all ${
+                              combo.on_tv ? 'left-7' : 'left-1'
+                            }`}
+                          />
+                        </SubmitButton>
+                      </form>
+                      {combo.on_tv && (
+                        <span className="rounded-full bg-[#fff176] px-2 py-0.5 text-xs font-medium text-gray-800">
+                          🔴 EN TV
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditing(combo)}
+                        className="rounded-lg bg-[#8e44ad]/10 px-2.5 py-1.5 text-xs font-semibold text-[#8e44ad] hover:bg-[#8e44ad]/20"
                       >
-                        Vender combo
-                      </SubmitButton>
-                    </form>
-                    <form
-                      action={deleteCombo}
-                      onSubmit={(e) => {
-                        if (!confirm(`¿Eliminar el combo "${combo.name}"?`)) e.preventDefault()
-                      }}
-                    >
-                      <input type="hidden" name="id" value={combo.id} />
-                      <button type="submit" className="px-2 text-sm text-red-400 transition hover:text-red-600">
-                        🗑
+                        ✏️ Editar
                       </button>
-                    </form>
+                      <form action={sellCombo}>
+                        <input type="hidden" name="comboId" value={combo.id} />
+                        <SubmitButton
+                          pendingText="…"
+                          disabled={sellable <= 0}
+                          className="rounded-lg bg-[#f06292] px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-[#d81b60] disabled:opacity-40"
+                        >
+                          Vender
+                        </SubmitButton>
+                      </form>
+                      <form
+                        action={deleteCombo}
+                        onSubmit={(e) => {
+                          if (!confirm(`¿Eliminar el combo "${combo.name}"?`)) e.preventDefault()
+                        }}
+                      >
+                        <input type="hidden" name="id" value={combo.id} />
+                        <button type="submit" className="px-1 text-sm text-red-400 transition hover:text-red-600">
+                          🗑
+                        </button>
+                      </form>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </section>
 
       {showCreator && (
-        <ComboCreator products={products} onClose={() => setShowCreator(false)} />
+        <ComboCreator products={activeProducts} onClose={() => setShowCreator(false)} />
+      )}
+
+      {editing && (
+        <ComboCreator
+          products={activeProducts}
+          editId={editing.id}
+          presetIds={editing.items.map((i) => i.id)}
+          presetName={editing.name}
+          presetPrice={editing.price_offer}
+          onClose={() => setEditing(null)}
+        />
       )}
     </div>
   )

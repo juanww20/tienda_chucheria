@@ -12,6 +12,7 @@ import Reportes from './components/Reportes'
 import Ajustes from './components/Ajustes'
 import type {
   AdminStats,
+  Category,
   Company,
   ComboSuggestion,
   ComboView,
@@ -27,12 +28,21 @@ interface Props {
   company: Company
   products: ProductWithVelocity[]
   combos: ComboView[]
+  categories: Category[]
   suggestions: ComboSuggestion[]
   rates: Rates
   stats: AdminStats
 }
 
-export default function AdminApp({ company, products, combos, suggestions, rates, stats }: Props) {
+export default function AdminApp({
+  company,
+  products,
+  combos,
+  categories,
+  suggestions,
+  rates,
+  stats,
+}: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('ventas')
   const contentRef = useRef<HTMLDivElement>(null)
 
@@ -52,7 +62,14 @@ export default function AdminApp({ company, products, combos, suggestions, rates
       case 'ventas':
         return <VentasCombos products={products} combos={combos} />
       case 'inventario':
-        return <Inventario products={products} company={company} rates={rates} />
+        return (
+          <Inventario
+            products={products}
+            company={company}
+            rates={rates}
+            categories={categories}
+          />
+        )
       case 'sugerencias':
         return <Sugerencias suggestions={suggestions} />
       case 'reportes':

@@ -51,14 +51,26 @@ export default function Sugerencias({ suggestions }: { suggestions: ComboSuggest
 
                 <div className="flex items-center justify-center gap-3 py-3">
                   <div className="text-center">
-                    <div className="text-4xl">{s.fast.emoji}</div>
+                    {s.fast.image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={s.fast.image_url} alt={s.fast.name} className="mx-auto h-14 w-14 rounded-xl object-cover" />
+                    ) : (
+                      <div className="text-4xl">{s.fast.emoji}</div>
+                    )}
                     <p className="mt-1 text-xs font-medium text-green-600">🚀 Rápido</p>
                     <p className="text-sm font-semibold text-gray-800">{s.fast.name}</p>
                   </div>
                   <span className="text-2xl text-[#f06292]">+</span>
                   <div className="text-center">
-                    <div className="text-4xl">{s.slow.emoji}</div>
-                    <p className="mt-1 text-xs font-medium text-orange-600">🐢 Lento</p>
+                    {s.slow.image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={s.slow.image_url} alt={s.slow.name} className="mx-auto h-14 w-14 rounded-xl object-cover" />
+                    ) : (
+                      <div className="text-4xl">{s.slow.emoji}</div>
+                    )}
+                    <p className="mt-1 text-xs font-medium text-orange-600">
+                      {s.slow.nearExpiry ? '⏰ Por vencer' : '🐢 Lento'}
+                    </p>
                     <p className="text-sm font-semibold text-gray-800">{s.slow.name}</p>
                   </div>
                 </div>
