@@ -13,10 +13,14 @@ create table if not exists public.companies (
   slug        text unique not null,
   logo_url    text,
   active      boolean not null default true,
+  rate_mode   text not null default 'binance',  -- binance | bcv | euro | custom
+  custom_rate numeric(12,4),
   created_at  timestamptz not null default now()
 );
 -- For existing databases:
 alter table public.companies add column if not exists active boolean not null default true;
+alter table public.companies add column if not exists rate_mode text not null default 'binance';
+alter table public.companies add column if not exists custom_rate numeric(12,4);
 
 create table if not exists public.profiles (
   id          uuid primary key references auth.users(id) on delete cascade,
@@ -34,8 +38,15 @@ create table if not exists public.products (
   stock       int not null default 0,
   emoji       text default '🍬',
   image_url   text,
+  expires_at  date,
+  rate_mode   text,             -- null = inherit company; else binance|bcv|euro|custom
+  custom_rate numeric(12,4),
   created_at  timestamptz not null default now()
 );
+-- For existing databases:
+alter table public.products add column if not exists expires_at date;
+alter table public.products add column if not exists rate_mode text;
+alter table public.products add column if not exists custom_rate numeric(12,4);
 
 create table if not exists public.combos (
   id              uuid primary key default gen_random_uuid(),

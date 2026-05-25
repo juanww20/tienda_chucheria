@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getSessionContext } from '@/lib/auth'
 import { logout } from '@/app/login/actions'
-import { suggestCombos, computeVelocity } from '@/lib/algorithm'
+import { suggestCombos, computeProductMeta } from '@/lib/algorithm'
+import { getRates } from '@/lib/rates'
 import type { Product, Sale } from '@/lib/types'
 import AdminApp from './AdminApp'
 
@@ -61,6 +62,7 @@ export default async function AdminPage() {
 
   const products = (productsData ?? []) as Product[]
   const sales = (salesData ?? []) as Sale[]
+  const rates = await getRates()
 
   const combos = (combosData ?? []).map((c) => {
     const items = (c.combo_items as unknown as
@@ -77,14 +79,9 @@ export default async function AdminPage() {
     }
   })
 
-  // Velocity tags for inventory view
-  const velocity = computeVelocity(sales)
-  const productsWithVelocity = products.map((p) => ({
-    ...p,
-    velocity: velocity.get(p.id) ?? 0,
-  }))
-
-  const suggestions = suggestCombos(products, sales)
+  // Velocity + rotation + expiry meta for inventory and suggestions
+  const productsWithVelocity = computeProductMeta(products, sales)
+  const suggestions = suggestCombos(productsWithVelocity)
 
   // Report stats
   const now = Date.now()
@@ -113,6 +110,7 @@ export default async function AdminPage() {
       products={productsWithVelocity}
       combos={combos}
       suggestions={suggestions}
+      rates={rates}
       stats={{
         ventasHoy,
         ventasSemana,

@@ -1,5 +1,11 @@
 export type Role = 'owner' | 'admin'
 
+// How a price is shown on the TV / monitor
+export type RateMode = 'binance' | 'bcv' | 'euro' | 'custom'
+
+// Inventory rotation classification
+export type RotationStatus = 'nuevo' | 'rapido' | 'lento'
+
 export type Plan = 'basic' | 'pro'
 export type PaymentMethod = 'binance' | 'pagomovil' | 'transferencia'
 export type PaymentStatus = 'pending' | 'validated' | 'rejected'
@@ -26,6 +32,8 @@ export interface Company {
   slug: string
   logo_url: string | null
   active: boolean
+  rate_mode: RateMode
+  custom_rate: number | null
   created_at: string
 }
 
@@ -45,6 +53,9 @@ export interface Product {
   stock: number
   emoji: string | null
   image_url: string | null
+  expires_at: string | null
+  rate_mode: RateMode | null
+  custom_rate: number | null
   created_at: string
 }
 
@@ -78,6 +89,10 @@ export interface Sale {
 
 export interface ProductWithVelocity extends Product {
   velocity: number
+  status: RotationStatus
+  ageDays: number
+  daysToExpiry: number | null
+  nearExpiry: boolean
 }
 
 export interface ComboView {

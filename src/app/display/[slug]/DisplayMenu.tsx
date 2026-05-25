@@ -20,6 +20,7 @@ export interface Slide {
   description: string
   price: number
   original: number
+  priceConverted?: string
   items: { name: string; emoji: string; image: string | null }[]
 }
 
@@ -189,6 +190,11 @@ export default function DisplayMenu({ companyName, companyLogo, slides }: Props)
                           </span>
                         </span>
                       </div>
+                      {slide.priceConverted && (
+                        <p className="gsap-in mt-[1.5vh] text-[3.5vh] font-bold text-white/80">
+                          {slide.priceConverted}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>

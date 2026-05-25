@@ -17,6 +17,7 @@ import type {
   ComboView,
   ProductWithVelocity,
 } from '@/lib/types'
+import type { Rates } from '@/lib/rates'
 
 gsap.registerPlugin(useGSAP)
 
@@ -27,10 +28,11 @@ interface Props {
   products: ProductWithVelocity[]
   combos: ComboView[]
   suggestions: ComboSuggestion[]
+  rates: Rates
   stats: AdminStats
 }
 
-export default function AdminApp({ company, products, combos, suggestions, stats }: Props) {
+export default function AdminApp({ company, products, combos, suggestions, rates, stats }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('ventas')
   const contentRef = useRef<HTMLDivElement>(null)
 
@@ -50,7 +52,7 @@ export default function AdminApp({ company, products, combos, suggestions, stats
       case 'ventas':
         return <VentasCombos products={products} combos={combos} />
       case 'inventario':
-        return <Inventario products={products} />
+        return <Inventario products={products} company={company} rates={rates} />
       case 'sugerencias':
         return <Sugerencias suggestions={suggestions} />
       case 'reportes':

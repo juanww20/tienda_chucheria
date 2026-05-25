@@ -86,6 +86,15 @@ export default function Landing({ rate }: { rate: number }) {
           <a href="#planes" className="hidden text-white/70 transition hover:text-white sm:block">
             Planes
           </a>
+          <a
+            href="https://www.instagram.com/chuchu_service/"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Instagram de Chuchu"
+            className="hidden text-white/70 transition hover:text-[#f06292] sm:block"
+          >
+            Instagram
+          </a>
           <Link
             href="/login"
             className="rounded-full bg-white/10 px-4 py-2 font-semibold transition hover:bg-white/20"
@@ -291,7 +300,18 @@ export default function Landing({ rate }: { rate: number }) {
           <Image src="/Logo/Chuchu_logo.png" alt="Chuchu" fill sizes="40px" className="object-contain" />
         </div>
         <p>✨ Chuchu Smart Menu · Hecho para negocios dulces</p>
-        <p className="mt-1">© {new Date().getFullYear()} Chuchu</p>
+        <a
+          href="https://www.instagram.com/chuchu_service/"
+          target="_blank"
+          rel="noreferrer"
+          className="mt-3 inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 font-semibold text-white/80 transition hover:border-[#f06292] hover:text-[#f06292]"
+        >
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+            <path d="M12 2.2c3.2 0 3.6 0 4.9.07 1.2.06 1.8.25 2.2.42.6.2 1 .46 1.4.86.4.4.66.8.86 1.4.17.4.36 1 .42 2.2.06 1.3.07 1.7.07 4.9s0 3.6-.07 4.9c-.06 1.2-.25 1.8-.42 2.2-.2.6-.46 1-.86 1.4-.4.4-.8.66-1.4.86-.4.17-1 .36-2.2.42-1.3.06-1.7.07-4.9.07s-3.6 0-4.9-.07c-1.2-.06-1.8-.25-2.2-.42-.6-.2-1-.46-1.4-.86-.4-.4-.66-.8-.86-1.4-.17-.4-.36-1-.42-2.2C2.2 15.6 2.2 15.2 2.2 12s0-3.6.07-4.9c.06-1.2.25-1.8.42-2.2.2-.6.46-1 .86-1.4.4-.4.8-.66 1.4-.86.4-.17 1-.36 2.2-.42C8.4 2.2 8.8 2.2 12 2.2zm0 1.8c-3.1 0-3.5 0-4.7.07-.9.04-1.4.2-1.7.32-.43.17-.74.37-1.06.7-.32.31-.52.62-.69 1.05-.12.3-.28.8-.32 1.7C3.2 8.5 3.2 8.9 3.2 12s0 3.5.07 4.7c.04.9.2 1.4.32 1.7.17.43.37.74.7 1.06.31.32.62.52 1.05.69.3.12.8.28 1.7.32 1.2.06 1.6.07 4.7.07s3.5 0 4.7-.07c.9-.04 1.4-.2 1.7-.32.43-.17.74-.37 1.06-.7.32-.31.52-.62.69-1.05.12-.3.28-.8.32-1.7.06-1.2.07-1.6.07-4.7s0-3.5-.07-4.7c-.04-.9-.2-1.4-.32-1.7a2.8 2.8 0 0 0-.7-1.06 2.8 2.8 0 0 0-1.05-.69c-.3-.12-.8-.28-1.7-.32C15.5 4 15.1 4 12 4zm0 3.1a4.9 4.9 0 1 1 0 9.8 4.9 4.9 0 0 1 0-9.8zm0 1.8a3.1 3.1 0 1 0 0 6.2 3.1 3.1 0 0 0 0-6.2zm5.1-.3a1.15 1.15 0 1 1 0 2.3 1.15 1.15 0 0 1 0-2.3z" />
+          </svg>
+          @chuchu_service
+        </a>
+        <p className="mt-3">© {new Date().getFullYear()} Chuchu</p>
       </footer>
     </div>
   )

@@ -3,11 +3,12 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import { updateCompany } from '../actions'
-import type { Company } from '@/lib/types'
+import type { Company, RateMode } from '@/lib/types'
 import SubmitButton from './SubmitButton'
 
 export default function Ajustes({ company }: { company: Company }) {
   const [preview, setPreview] = useState<string | null>(null)
+  const [rateMode, setRateMode] = useState<RateMode>(company.rate_mode)
   const displayUrl =
     typeof window !== 'undefined' ? `${window.location.origin}/display/${company.slug}` : ''
 
@@ -55,6 +56,46 @@ export default function Ajustes({ company }: { company: Company }) {
               </p>
             </div>
           </div>
+        </div>
+
+        <div className="rounded-xl border border-gray-200 bg-white p-6">
+          <h3 className="mb-1 font-bold text-gray-800">💱 Tasa de cambio en la TV</h3>
+          <p className="mb-4 text-sm text-gray-500">
+            Define cómo se muestran los precios en pantalla. Aplica a todos los productos que no
+            tengan una tasa propia.
+          </p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {(['binance', 'bcv', 'euro', 'custom'] as RateMode[]).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setRateMode(m)}
+                className={`rounded-xl border px-3 py-3 text-sm font-semibold capitalize transition ${
+                  rateMode === m
+                    ? 'border-[#8e44ad] bg-[#8e44ad]/10 text-[#8e44ad]'
+                    : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                }`}
+              >
+                {m === 'custom' ? 'Tasa propia' : m}
+              </button>
+            ))}
+          </div>
+          <input type="hidden" name="rate_mode" value={rateMode} />
+          {rateMode === 'custom' && (
+            <div className="mt-4">
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Tasa propia (Bs por USD)
+              </label>
+              <input
+                name="custom_rate"
+                type="number"
+                step="0.01"
+                defaultValue={company.custom_rate ?? ''}
+                placeholder="Ej: 40.00"
+                className="w-full max-w-xs rounded-lg border border-gray-300 px-4 py-2 outline-none focus:ring-2 focus:ring-[#f06292]"
+              />
+            </div>
+          )}
         </div>
 
         <div className="rounded-xl border border-gray-200 bg-white p-6">

@@ -27,6 +27,15 @@ export async function addProduct(formData: FormData): Promise<void> {
   const price = Number(formData.get('price') || 0)
   const stock = parseInt(String(formData.get('stock') || '0'), 10) || 0
   const emoji = String(formData.get('emoji') || '🍬').trim() || '🍬'
+  const expires_at = String(formData.get('expires_at') || '').trim() || null
+
+  // Display rate override (empty = inherit company default)
+  const rateModeRaw = String(formData.get('rate_mode') || '').trim()
+  const rate_mode = ['binance', 'bcv', 'euro', 'custom'].includes(rateModeRaw)
+    ? rateModeRaw
+    : null
+  const customRaw = Number(formData.get('custom_rate') || 0)
+  const custom_rate = rate_mode === 'custom' && customRaw > 0 ? customRaw : null
 
   // Optional product image (uploaded via service role -> public bucket)
   let image_url: string | null = null
@@ -43,9 +52,17 @@ export async function addProduct(formData: FormData): Promise<void> {
     }
   }
 
-  await supabase
-    .from('products')
-    .insert({ company_id: companyId, name, price, stock, emoji, image_url })
+  await supabase.from('products').insert({
+    company_id: companyId,
+    name,
+    price,
+    stock,
+    emoji,
+    image_url,
+    expires_at,
+    rate_mode,
+    custom_rate,
+  })
   revalidatePath('/admin')
 }
 
@@ -182,8 +199,20 @@ export async function updateCompany(formData: FormData): Promise<void> {
   const name = String(formData.get('name') || '').trim()
   const logo = formData.get('logo') as File | null
 
-  const patch: { name?: string; logo_url?: string } = {}
+  const patch: {
+    name?: string
+    logo_url?: string
+    rate_mode?: string
+    custom_rate?: number | null
+  } = {}
   if (name) patch.name = name
+
+  const rateModeRaw = String(formData.get('rate_mode') || '').trim()
+  if (['binance', 'bcv', 'euro', 'custom'].includes(rateModeRaw)) {
+    patch.rate_mode = rateModeRaw
+    const customRaw = Number(formData.get('custom_rate') || 0)
+    patch.custom_rate = rateModeRaw === 'custom' && customRaw > 0 ? customRaw : null
+  }
 
   // Use the service-role client (scoped by the authenticated company id).
   // companies has no UPDATE RLS policy, so the user client would be denied.

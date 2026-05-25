@@ -1,5 +1,7 @@
 import { notFound } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getRates, convertPrice, formatConverted } from '@/lib/rates'
+import type { RateMode } from '@/lib/types'
 import DisplayMenu, { type Slide } from './DisplayMenu'
 
 export const dynamic = 'force-dynamic'
@@ -15,11 +17,15 @@ export default async function DisplayPage({
 
   const { data: company } = await admin
     .from('companies')
-    .select('id, name, logo_url, active')
+    .select('id, name, logo_url, active, rate_mode, custom_rate')
     .eq('slug', slug)
     .single()
 
   if (!company || company.active === false) notFound()
+
+  const rates = await getRates()
+  const companyMode = (company.rate_mode as RateMode) || 'binance'
+  const companyCustom = (company.custom_rate as number | null) ?? null
 
   const { data: combosData } = await admin
     .from('combos')
@@ -33,12 +39,14 @@ export default async function DisplayPage({
       (c.combo_items as unknown as {
         products: { name: string; emoji: string | null; image_url: string | null } | null
       }[] | null) ?? []
+    const conv = convertPrice(Number(c.price_offer), companyMode, companyCustom, rates)
     return {
       id: c.id as string,
       name: c.name as string,
       description: (c.description as string | null) ?? '',
       price: Number(c.price_offer),
       original: Number(c.original_price),
+      priceConverted: conv.rate > 0 ? formatConverted(conv) : '',
       items: items
         .map((i) => i.products)
         .filter((p): p is { name: string; emoji: string | null; image_url: string | null } => !!p)
